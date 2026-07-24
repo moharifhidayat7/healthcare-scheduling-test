@@ -3,6 +3,7 @@ import { GetSchedulesUseCase } from './get-schedules.use-case';
 import { ScheduleService } from '../schedule.service';
 import { PrismaService } from '../../../integrations/prisma/prisma.service';
 import { CacheService } from '../../../common/cache/cache.service';
+import { MailService } from '../../../common/mail/mail.service';
 
 type MockPrisma = {
   schedule: { findMany: jest.Mock; count: jest.Mock };
@@ -32,6 +33,10 @@ describe('GetSchedulesUseCase', () => {
       providers: [
         GetSchedulesUseCase,
         ScheduleService,
+        {
+          provide: MailService,
+          useValue: { send: jest.fn().mockResolvedValue(undefined) },
+        },
         {
           provide: CacheService,
           useValue: {

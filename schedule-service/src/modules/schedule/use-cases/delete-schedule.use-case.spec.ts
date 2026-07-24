@@ -3,6 +3,7 @@ import { NotFoundException } from '@nestjs/common';
 import { DeleteScheduleUseCase } from './delete-schedule.use-case';
 import { ScheduleService } from '../schedule.service';
 import { PrismaService } from '../../../integrations/prisma/prisma.service';
+import { MailService } from '../../../common/mail/mail.service';
 import { CacheService } from '../../../common/cache/cache.service';
 
 type MockPrisma = {
@@ -21,6 +22,8 @@ describe('DeleteScheduleUseCase', () => {
     scheduledAt: new Date('2026-07-24T10:00:00Z'),
     createdAt: new Date(),
     updatedAt: new Date(),
+    customer: { name: 'Test', email: 'test@example.com' },
+    doctor: { name: 'Dr. Smith' },
   };
 
   const mockPrisma: MockPrisma = {
@@ -33,6 +36,10 @@ describe('DeleteScheduleUseCase', () => {
       providers: [
         DeleteScheduleUseCase,
         ScheduleService,
+        {
+          provide: MailService,
+          useValue: { send: jest.fn().mockResolvedValue(undefined) },
+        },
         {
           provide: CacheService,
           useValue: {
@@ -58,6 +65,7 @@ describe('DeleteScheduleUseCase', () => {
 
     expect(prisma.schedule.findUnique).toHaveBeenCalledWith({
       where: { id: '1' },
+      include: { customer: true, doctor: true },
     });
     expect(prisma.schedule.delete).toHaveBeenCalledWith({ where: { id: '1' } });
     expect(result).toEqual(mockSchedule);

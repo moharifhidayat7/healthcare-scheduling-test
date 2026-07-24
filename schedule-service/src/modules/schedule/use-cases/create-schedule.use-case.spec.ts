@@ -3,6 +3,7 @@ import { NotFoundException, ConflictException } from '@nestjs/common';
 import { CreateScheduleUseCase } from './create-schedule.use-case';
 import { ScheduleService } from '../schedule.service';
 import { PrismaService } from '../../../integrations/prisma/prisma.service';
+import { MailService } from '../../../common/mail/mail.service';
 import { CacheService } from '../../../common/cache/cache.service';
 
 type MockPrisma = {
@@ -53,6 +54,10 @@ describe('CreateScheduleUseCase', () => {
       providers: [
         CreateScheduleUseCase,
         ScheduleService,
+        {
+          provide: MailService,
+          useValue: { send: jest.fn().mockResolvedValue(undefined) },
+        },
         {
           provide: CacheService,
           useValue: {

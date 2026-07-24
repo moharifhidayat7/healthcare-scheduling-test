@@ -5,6 +5,7 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from '../../integrations/prisma/prisma.service';
 import { CacheService } from '../../common/cache/cache.service';
+import { MailService } from '../../common/mail/mail.service';
 import { CreateScheduleInput } from './graphql/inputs/create-schedule.input';
 
 @Injectable()
@@ -12,6 +13,7 @@ export class ScheduleService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly cache: CacheService,
+    private readonly mailService: MailService,
   ) {}
 
   async create(input: CreateScheduleInput) {
@@ -33,6 +35,19 @@ export class ScheduleService {
 
     const schedule = await this.prisma.schedule.create({ data: input });
     await this.invalidateListCache('schedule');
+
+    await this.mailService.send({
+      to: customer.email,
+      subject: 'Schedule Confirmed',
+      template: 'schedule-created',
+      context: {
+        customerName: customer.name,
+        doctorName: doctor.name,
+        scheduledAt: schedule.scheduledAt.toISOString(),
+        objective: schedule.objective,
+      },
+    });
+
     return schedule;
   }
 
@@ -85,10 +100,30 @@ export class ScheduleService {
   }
 
   async delete(id: string) {
-    await this.findById(id);
-    const deleted = await this.prisma.schedule.delete({ where: { id } });
+    const schedule = await this.prisma.schedule.findUnique({
+      where: { id },
+      include: { customer: true, doctor: true },
+    });
+    if (!schedule) {
+      throw new NotFoundException(`Schedule with id ${id} not found`);
+    }
+
+    await this.prisma.schedule.delete({ where: { id } });
     await this.invalidateEntityCache('schedule', id);
-    return deleted;
+
+    await this.mailService.send({
+      to: schedule.customer.email,
+      subject: 'Schedule Cancelled',
+      template: 'schedule-deleted',
+      context: {
+        customerName: schedule.customer.name,
+        doctorName: schedule.doctor.name,
+        scheduledAt: schedule.scheduledAt.toISOString(),
+        objective: schedule.objective,
+      },
+    });
+
+    return schedule;
   }
 
   private async validateSchedule(doctorId: string, scheduledAt: Date) {

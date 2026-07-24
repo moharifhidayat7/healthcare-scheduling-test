@@ -8,6 +8,7 @@ import { GetScheduleUseCase } from '../use-cases/get-schedule.use-case';
 import { GetSchedulesUseCase } from '../use-cases/get-schedules.use-case';
 import { DeleteScheduleUseCase } from '../use-cases/delete-schedule.use-case';
 import { CacheService } from '../../../common/cache/cache.service';
+import { MailService } from '../../../common/mail/mail.service';
 
 type MockPrisma = {
   customer: { findUnique: jest.Mock };
@@ -34,6 +35,8 @@ describe('ScheduleResolver', () => {
     scheduledAt: new Date('2026-07-24T10:00:00Z'),
     createdAt: new Date('2026-01-01'),
     updatedAt: new Date('2026-01-01'),
+    customer: { name: 'Test', email: 'test@example.com' },
+    doctor: { name: 'Dr. Smith' },
   };
 
   const mockPrisma: MockPrisma = {
@@ -67,6 +70,10 @@ describe('ScheduleResolver', () => {
             del: jest.fn(),
             delByPattern: jest.fn(),
           },
+        },
+        {
+          provide: MailService,
+          useValue: { send: jest.fn().mockResolvedValue(undefined) },
         },
         { provide: PrismaService, useValue: mockPrisma },
       ],
@@ -174,6 +181,7 @@ describe('ScheduleResolver', () => {
 
       expect(prisma.schedule.findUnique).toHaveBeenCalledWith({
         where: { id: '1' },
+        include: { customer: true, doctor: true },
       });
       expect(prisma.schedule.delete).toHaveBeenCalledWith({
         where: { id: '1' },
