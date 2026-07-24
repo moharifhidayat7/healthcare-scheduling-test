@@ -83,7 +83,14 @@ services:
       REDIS_PORT: 6379
       REDIS_PASSWORD: ${REDIS_PASSWORD:-}
       REDIS_DB: ${REDIS_DB:-0}
+      JWT_SECRET: ${JWT_SECRET:-change-this-to-a-different-secret}
       INTERNAL_JWT_SECRET: ${INTERNAL_JWT_SECRET:-change-this-to-a-random-secret}
+      MAIL_HOST: ${MAIL_HOST:-localhost}
+      MAIL_PORT: ${MAIL_PORT:-587}
+      MAIL_USER: ${MAIL_USER:-}
+      MAIL_PASSWORD: ${MAIL_PASSWORD:-}
+      MAIL_FROM: ${MAIL_FROM:-noreply@example.com}
+      AUTH_SERVICE_URL: http://auth-service:3000/graphql
     networks:
       - backend
     depends_on:
