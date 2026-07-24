@@ -1,24 +1,35 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { CreateDoctorUseCase } from './create-doctor.use-case';
 import { DoctorService } from '../doctor.service';
+import { PrismaService } from '../../../integrations/prisma/prisma.service';
+
+type MockPrisma = {
+  doctor: { create: jest.Mock };
+};
 
 describe('CreateDoctorUseCase', () => {
   let useCase: CreateDoctorUseCase;
-  let doctorService: jest.Mocked<DoctorService>;
+  let prisma: MockPrisma;
+
+  const mockPrisma: MockPrisma = {
+    doctor: { create: jest.fn() },
+  };
 
   beforeEach(async () => {
+    jest.clearAllMocks();
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         CreateDoctorUseCase,
-        { provide: DoctorService, useValue: { create: jest.fn() } },
+        DoctorService,
+        { provide: PrismaService, useValue: mockPrisma },
       ],
     }).compile();
 
     useCase = module.get(CreateDoctorUseCase);
-    doctorService = module.get(DoctorService) as jest.Mocked<DoctorService>;
+    prisma = module.get(PrismaService) as unknown as MockPrisma;
   });
 
-  it('should call doctorService.create with the input', async () => {
+  it('should create a doctor', async () => {
     const input = { name: 'Dr. Smith' };
     const expected = {
       id: '1',
@@ -26,12 +37,11 @@ describe('CreateDoctorUseCase', () => {
       createdAt: new Date(),
       updatedAt: new Date(),
     };
-    doctorService.create.mockResolvedValue(expected);
+    prisma.doctor.create.mockResolvedValue(expected);
 
     const result = await useCase.execute(input);
 
-    expect(doctorService.create).toHaveBeenCalledTimes(1);
-    expect(doctorService.create).toHaveBeenCalledWith(input);
+    expect(prisma.doctor.create).toHaveBeenCalledWith({ data: input });
     expect(result).toEqual(expected);
   });
 });

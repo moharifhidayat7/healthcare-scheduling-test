@@ -1,42 +1,61 @@
 import { Test, TestingModule } from '@nestjs/testing';
+import { NotFoundException } from '@nestjs/common';
 import { GetScheduleUseCase } from './get-schedule.use-case';
 import { ScheduleService } from '../schedule.service';
+import { PrismaService } from '../../../integrations/prisma/prisma.service';
+
+type MockPrisma = {
+  schedule: { findUnique: jest.Mock };
+};
 
 describe('GetScheduleUseCase', () => {
   let useCase: GetScheduleUseCase;
-  let scheduleService: jest.Mocked<ScheduleService>;
+  let prisma: MockPrisma;
+
+  const mockSchedule = {
+    id: '1',
+    objective: 'Checkup',
+    customerId: 'cust-1',
+    doctorId: 'doc-1',
+    scheduledAt: new Date('2026-07-24T10:00:00Z'),
+    createdAt: new Date(),
+    updatedAt: new Date(),
+  };
+
+  const mockPrisma: MockPrisma = {
+    schedule: { findUnique: jest.fn() },
+  };
 
   beforeEach(async () => {
+    jest.clearAllMocks();
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         GetScheduleUseCase,
-        { provide: ScheduleService, useValue: { findById: jest.fn() } },
+        ScheduleService,
+        { provide: PrismaService, useValue: mockPrisma },
       ],
     }).compile();
 
     useCase = module.get(GetScheduleUseCase);
-    scheduleService = module.get(
-      ScheduleService,
-    ) as jest.Mocked<ScheduleService>;
+    prisma = module.get(PrismaService) as unknown as MockPrisma;
   });
 
-  it('should call scheduleService.findById with the id', async () => {
-    const id = '1';
-    const expected = {
-      id,
-      objective: 'Checkup',
-      customerId: 'cust-1',
-      doctorId: 'doc-1',
-      scheduledAt: new Date('2026-07-24T10:00:00Z'),
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    };
-    scheduleService.findById.mockResolvedValue(expected);
+  it('should return the schedule when found', async () => {
+    prisma.schedule.findUnique.mockResolvedValue(mockSchedule);
 
-    const result = await useCase.execute(id);
+    const result = await useCase.execute('1');
 
-    expect(scheduleService.findById).toHaveBeenCalledTimes(1);
-    expect(scheduleService.findById).toHaveBeenCalledWith(id);
-    expect(result).toEqual(expected);
+    expect(prisma.schedule.findUnique).toHaveBeenCalledWith({
+      where: { id: '1' },
+    });
+    expect(result).toEqual(mockSchedule);
+  });
+
+  it('should throw NotFoundException when not found', async () => {
+    prisma.schedule.findUnique.mockResolvedValue(null);
+
+    await expect(useCase.execute('1')).rejects.toThrow(
+      new NotFoundException('Schedule with id 1 not found'),
+    );
   });
 });

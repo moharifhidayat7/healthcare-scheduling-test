@@ -1,19 +1,28 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { ExternalAuthGuard } from '../../../common/auth/external.guard';
 import { DoctorResolver } from './doctor.resolver';
+import { DoctorService } from '../doctor.service';
+import { PrismaService } from '../../../integrations/prisma/prisma.service';
 import { CreateDoctorUseCase } from '../use-cases/create-doctor.use-case';
 import { UpdateDoctorUseCase } from '../use-cases/update-doctor.use-case';
 import { GetDoctorUseCase } from '../use-cases/get-doctor.use-case';
 import { GetDoctorsUseCase } from '../use-cases/get-doctors.use-case';
 import { DeleteDoctorUseCase } from '../use-cases/delete-doctor.use-case';
 
+type MockPrisma = {
+  doctor: {
+    findUnique: jest.Mock;
+    findMany: jest.Mock;
+    count: jest.Mock;
+    create: jest.Mock;
+    update: jest.Mock;
+    delete: jest.Mock;
+  };
+};
+
 describe('DoctorResolver', () => {
   let resolver: DoctorResolver;
-  let createDoctorUseCase: jest.Mocked<CreateDoctorUseCase>;
-  let updateDoctorUseCase: jest.Mocked<UpdateDoctorUseCase>;
-  let getDoctorUseCase: jest.Mocked<GetDoctorUseCase>;
-  let getDoctorsUseCase: jest.Mocked<GetDoctorsUseCase>;
-  let deleteDoctorUseCase: jest.Mocked<DeleteDoctorUseCase>;
+  let prisma: MockPrisma;
 
   const mockDoctor = {
     id: '1',
@@ -22,30 +31,29 @@ describe('DoctorResolver', () => {
     updatedAt: new Date('2026-01-01'),
   };
 
+  const mockPrisma: MockPrisma = {
+    doctor: {
+      findUnique: jest.fn(),
+      findMany: jest.fn(),
+      count: jest.fn(),
+      create: jest.fn(),
+      update: jest.fn(),
+      delete: jest.fn(),
+    },
+  };
+
   beforeEach(async () => {
+    jest.clearAllMocks();
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         DoctorResolver,
-        {
-          provide: CreateDoctorUseCase,
-          useValue: { execute: jest.fn() },
-        },
-        {
-          provide: UpdateDoctorUseCase,
-          useValue: { execute: jest.fn() },
-        },
-        {
-          provide: GetDoctorUseCase,
-          useValue: { execute: jest.fn() },
-        },
-        {
-          provide: GetDoctorsUseCase,
-          useValue: { execute: jest.fn() },
-        },
-        {
-          provide: DeleteDoctorUseCase,
-          useValue: { execute: jest.fn() },
-        },
+        CreateDoctorUseCase,
+        UpdateDoctorUseCase,
+        GetDoctorUseCase,
+        GetDoctorsUseCase,
+        DeleteDoctorUseCase,
+        DoctorService,
+        { provide: PrismaService, useValue: mockPrisma },
       ],
     })
       .overrideGuard(ExternalAuthGuard)
@@ -53,99 +61,99 @@ describe('DoctorResolver', () => {
       .compile();
 
     resolver = module.get(DoctorResolver);
-    createDoctorUseCase = module.get(
-      CreateDoctorUseCase,
-    ) as jest.Mocked<CreateDoctorUseCase>;
-    updateDoctorUseCase = module.get(
-      UpdateDoctorUseCase,
-    ) as jest.Mocked<UpdateDoctorUseCase>;
-    getDoctorUseCase = module.get(
-      GetDoctorUseCase,
-    ) as jest.Mocked<GetDoctorUseCase>;
-    getDoctorsUseCase = module.get(
-      GetDoctorsUseCase,
-    ) as jest.Mocked<GetDoctorsUseCase>;
-    deleteDoctorUseCase = module.get(
-      DeleteDoctorUseCase,
-    ) as jest.Mocked<DeleteDoctorUseCase>;
+    prisma = module.get(PrismaService) as unknown as MockPrisma;
   });
 
   describe('doctors', () => {
-    it('should delegate to getDoctorsUseCase.execute with page and limit', async () => {
-      const expected = {
-        data: [mockDoctor],
-        meta: { pagination: { page: 1, limit: 20, total: 1, totalPages: 1 } },
-      };
-      getDoctorsUseCase.execute.mockResolvedValue(expected);
+    it('should return paginated results', async () => {
+      prisma.doctor.findMany.mockResolvedValue([mockDoctor]);
+      prisma.doctor.count.mockResolvedValue(1);
 
       const result = await resolver.doctors(1, 20);
 
-      expect(getDoctorsUseCase.execute).toHaveBeenCalledTimes(1);
-      expect(getDoctorsUseCase.execute).toHaveBeenCalledWith(1, 20);
-      expect(result).toEqual(expected);
+      expect(prisma.doctor.findMany).toHaveBeenCalledWith({
+        skip: 0,
+        take: 20,
+        orderBy: { createdAt: 'desc' },
+      });
+      expect(result).toEqual({
+        data: [mockDoctor],
+        meta: { pagination: { page: 1, limit: 20, total: 1, totalPages: 1 } },
+      });
     });
 
     it('should pass undefined page/limit when omitted', async () => {
-      getDoctorsUseCase.execute.mockResolvedValue({
-        data: [],
-        meta: { pagination: { page: 1, limit: 20, total: 0, totalPages: 0 } },
-      });
+      prisma.doctor.findMany.mockResolvedValue([]);
+      prisma.doctor.count.mockResolvedValue(0);
 
       await resolver.doctors(undefined, undefined);
 
-      expect(getDoctorsUseCase.execute).toHaveBeenCalledWith(
-        undefined,
-        undefined,
-      );
+      expect(prisma.doctor.findMany).toHaveBeenCalledWith({
+        skip: 0,
+        take: 20,
+        orderBy: { createdAt: 'desc' },
+      });
     });
   });
 
   describe('doctor', () => {
-    it('should delegate to getDoctorUseCase.execute with the id', async () => {
-      getDoctorUseCase.execute.mockResolvedValue(mockDoctor);
+    it('should return the doctor when found', async () => {
+      prisma.doctor.findUnique.mockResolvedValue(mockDoctor);
 
       const result = await resolver.doctor('1');
 
-      expect(getDoctorUseCase.execute).toHaveBeenCalledTimes(1);
-      expect(getDoctorUseCase.execute).toHaveBeenCalledWith('1');
+      expect(prisma.doctor.findUnique).toHaveBeenCalledWith({
+        where: { id: '1' },
+      });
       expect(result).toEqual(mockDoctor);
     });
   });
 
   describe('createDoctor', () => {
-    it('should delegate to createDoctorUseCase.execute with the input', async () => {
+    it('should create a doctor', async () => {
       const input = { name: 'Dr. Smith' };
-      createDoctorUseCase.execute.mockResolvedValue(mockDoctor);
+      prisma.doctor.create.mockResolvedValue(mockDoctor);
 
       const result = await resolver.createDoctor(input);
 
-      expect(createDoctorUseCase.execute).toHaveBeenCalledTimes(1);
-      expect(createDoctorUseCase.execute).toHaveBeenCalledWith(input);
+      expect(prisma.doctor.create).toHaveBeenCalledWith({ data: input });
       expect(result).toEqual(mockDoctor);
     });
   });
 
   describe('updateDoctor', () => {
-    it('should delegate to updateDoctorUseCase.execute with the input', async () => {
+    it('should update a doctor when found', async () => {
       const input = { id: '1', name: 'Dr. Updated' };
-      updateDoctorUseCase.execute.mockResolvedValue(mockDoctor);
+      prisma.doctor.findUnique.mockResolvedValue(mockDoctor);
+      prisma.doctor.update.mockResolvedValue({
+        ...mockDoctor,
+        name: 'Dr. Updated',
+      });
 
       const result = await resolver.updateDoctor(input);
 
-      expect(updateDoctorUseCase.execute).toHaveBeenCalledTimes(1);
-      expect(updateDoctorUseCase.execute).toHaveBeenCalledWith(input);
-      expect(result).toEqual(mockDoctor);
+      expect(prisma.doctor.findUnique).toHaveBeenCalledWith({
+        where: { id: '1' },
+      });
+      expect(prisma.doctor.update).toHaveBeenCalledWith({
+        where: { id: '1' },
+        data: { name: 'Dr. Updated' },
+      });
+      expect(result).toEqual({ ...mockDoctor, name: 'Dr. Updated' });
     });
   });
 
   describe('deleteDoctor', () => {
-    it('should delegate to deleteDoctorUseCase.execute with the id', async () => {
-      deleteDoctorUseCase.execute.mockResolvedValue(mockDoctor);
+    it('should delete and return the doctor when found', async () => {
+      prisma.doctor.findUnique.mockResolvedValue(mockDoctor);
+      prisma.doctor.delete.mockResolvedValue(mockDoctor);
 
       const result = await resolver.deleteDoctor('1');
 
-      expect(deleteDoctorUseCase.execute).toHaveBeenCalledTimes(1);
-      expect(deleteDoctorUseCase.execute).toHaveBeenCalledWith('1');
+      expect(prisma.doctor.findUnique).toHaveBeenCalledWith({
+        where: { id: '1' },
+      });
+      expect(prisma.doctor.delete).toHaveBeenCalledWith({ where: { id: '1' } });
       expect(result).toEqual(mockDoctor);
     });
   });

@@ -1,17 +1,29 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { ExternalAuthGuard } from '../../../common/auth/external.guard';
 import { ScheduleResolver } from './schedule.resolver';
+import { ScheduleService } from '../schedule.service';
+import { PrismaService } from '../../../integrations/prisma/prisma.service';
 import { CreateScheduleUseCase } from '../use-cases/create-schedule.use-case';
 import { GetScheduleUseCase } from '../use-cases/get-schedule.use-case';
 import { GetSchedulesUseCase } from '../use-cases/get-schedules.use-case';
 import { DeleteScheduleUseCase } from '../use-cases/delete-schedule.use-case';
 
+type MockPrisma = {
+  customer: { findUnique: jest.Mock };
+  doctor: { findUnique: jest.Mock };
+  schedule: {
+    findFirst: jest.Mock;
+    findMany: jest.Mock;
+    findUnique: jest.Mock;
+    count: jest.Mock;
+    create: jest.Mock;
+    delete: jest.Mock;
+  };
+};
+
 describe('ScheduleResolver', () => {
   let resolver: ScheduleResolver;
-  let createScheduleUseCase: jest.Mocked<CreateScheduleUseCase>;
-  let getScheduleUseCase: jest.Mocked<GetScheduleUseCase>;
-  let getSchedulesUseCase: jest.Mocked<GetSchedulesUseCase>;
-  let deleteScheduleUseCase: jest.Mocked<DeleteScheduleUseCase>;
+  let prisma: MockPrisma;
 
   const mockSchedule = {
     id: '1',
@@ -23,26 +35,30 @@ describe('ScheduleResolver', () => {
     updatedAt: new Date('2026-01-01'),
   };
 
+  const mockPrisma: MockPrisma = {
+    customer: { findUnique: jest.fn() },
+    doctor: { findUnique: jest.fn() },
+    schedule: {
+      findFirst: jest.fn(),
+      findMany: jest.fn(),
+      findUnique: jest.fn(),
+      count: jest.fn(),
+      create: jest.fn(),
+      delete: jest.fn(),
+    },
+  };
+
   beforeEach(async () => {
+    jest.clearAllMocks();
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         ScheduleResolver,
-        {
-          provide: CreateScheduleUseCase,
-          useValue: { execute: jest.fn() },
-        },
-        {
-          provide: GetScheduleUseCase,
-          useValue: { execute: jest.fn() },
-        },
-        {
-          provide: GetSchedulesUseCase,
-          useValue: { execute: jest.fn() },
-        },
-        {
-          provide: DeleteScheduleUseCase,
-          useValue: { execute: jest.fn() },
-        },
+        CreateScheduleUseCase,
+        GetScheduleUseCase,
+        GetSchedulesUseCase,
+        DeleteScheduleUseCase,
+        ScheduleService,
+        { provide: PrismaService, useValue: mockPrisma },
       ],
     })
       .overrideGuard(ExternalAuthGuard)
@@ -50,88 +66,108 @@ describe('ScheduleResolver', () => {
       .compile();
 
     resolver = module.get(ScheduleResolver);
-    createScheduleUseCase = module.get(
-      CreateScheduleUseCase,
-    ) as jest.Mocked<CreateScheduleUseCase>;
-    getScheduleUseCase = module.get(
-      GetScheduleUseCase,
-    ) as jest.Mocked<GetScheduleUseCase>;
-    getSchedulesUseCase = module.get(
-      GetSchedulesUseCase,
-    ) as jest.Mocked<GetSchedulesUseCase>;
-    deleteScheduleUseCase = module.get(
-      DeleteScheduleUseCase,
-    ) as jest.Mocked<DeleteScheduleUseCase>;
+    prisma = module.get(PrismaService) as unknown as MockPrisma;
   });
 
   describe('schedules', () => {
-    it('should delegate to getSchedulesUseCase.execute with page and limit', async () => {
-      const expected = {
-        data: [mockSchedule],
-        meta: { pagination: { page: 1, limit: 20, total: 1, totalPages: 1 } },
-      };
-      getSchedulesUseCase.execute.mockResolvedValue(expected);
+    it('should return paginated results', async () => {
+      prisma.schedule.findMany.mockResolvedValue([mockSchedule]);
+      prisma.schedule.count.mockResolvedValue(1);
 
       const result = await resolver.schedules(1, 20);
 
-      expect(getSchedulesUseCase.execute).toHaveBeenCalledTimes(1);
-      expect(getSchedulesUseCase.execute).toHaveBeenCalledWith(1, 20);
-      expect(result).toEqual(expected);
+      expect(prisma.schedule.findMany).toHaveBeenCalledWith({
+        skip: 0,
+        take: 20,
+        orderBy: { scheduledAt: 'desc' },
+      });
+      expect(result).toEqual({
+        data: [mockSchedule],
+        meta: { pagination: { page: 1, limit: 20, total: 1, totalPages: 1 } },
+      });
     });
 
     it('should pass undefined page/limit when omitted', async () => {
-      getSchedulesUseCase.execute.mockResolvedValue({
-        data: [],
-        meta: { pagination: { page: 1, limit: 20, total: 0, totalPages: 0 } },
-      });
+      prisma.schedule.findMany.mockResolvedValue([]);
+      prisma.schedule.count.mockResolvedValue(0);
 
       await resolver.schedules(undefined, undefined);
 
-      expect(getSchedulesUseCase.execute).toHaveBeenCalledWith(
-        undefined,
-        undefined,
-      );
+      expect(prisma.schedule.findMany).toHaveBeenCalledWith({
+        skip: 0,
+        take: 20,
+        orderBy: { scheduledAt: 'desc' },
+      });
     });
   });
 
   describe('schedule', () => {
-    it('should delegate to getScheduleUseCase.execute with the id', async () => {
-      getScheduleUseCase.execute.mockResolvedValue(mockSchedule);
+    it('should return the schedule when found', async () => {
+      prisma.schedule.findUnique.mockResolvedValue(mockSchedule);
 
       const result = await resolver.schedule('1');
 
-      expect(getScheduleUseCase.execute).toHaveBeenCalledTimes(1);
-      expect(getScheduleUseCase.execute).toHaveBeenCalledWith('1');
+      expect(prisma.schedule.findUnique).toHaveBeenCalledWith({
+        where: { id: '1' },
+      });
       expect(result).toEqual(mockSchedule);
     });
   });
 
   describe('createSchedule', () => {
-    it('should delegate to createScheduleUseCase.execute with the input', async () => {
+    it('should create a schedule when valid', async () => {
       const input = {
         objective: 'Checkup',
         customerId: 'cust-1',
         doctorId: 'doc-1',
         scheduledAt: new Date('2026-07-24T10:00:00Z'),
       };
-      createScheduleUseCase.execute.mockResolvedValue(mockSchedule);
+      const mockCustomer = {
+        id: 'cust-1',
+        name: 'Test',
+        email: 't@t.com',
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
+      const mockDoctor = {
+        id: 'doc-1',
+        name: 'Dr',
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
+
+      prisma.customer.findUnique.mockResolvedValue(mockCustomer);
+      prisma.doctor.findUnique.mockResolvedValue(mockDoctor);
+      prisma.schedule.findFirst.mockResolvedValue(null);
+      prisma.schedule.create.mockResolvedValue(mockSchedule);
 
       const result = await resolver.createSchedule(input);
 
-      expect(createScheduleUseCase.execute).toHaveBeenCalledTimes(1);
-      expect(createScheduleUseCase.execute).toHaveBeenCalledWith(input);
+      expect(prisma.customer.findUnique).toHaveBeenCalledWith({
+        where: { id: 'cust-1' },
+      });
+      expect(prisma.doctor.findUnique).toHaveBeenCalledWith({
+        where: { id: 'doc-1' },
+      });
+      expect(prisma.schedule.findFirst).toHaveBeenCalled();
+      expect(prisma.schedule.create).toHaveBeenCalledWith({ data: input });
       expect(result).toEqual(mockSchedule);
     });
   });
 
   describe('deleteSchedule', () => {
-    it('should delegate to deleteScheduleUseCase.execute with the id', async () => {
-      deleteScheduleUseCase.execute.mockResolvedValue(mockSchedule);
+    it('should delete and return the schedule when found', async () => {
+      prisma.schedule.findUnique.mockResolvedValue(mockSchedule);
+      prisma.schedule.delete.mockResolvedValue(mockSchedule);
 
       const result = await resolver.deleteSchedule('1');
 
-      expect(deleteScheduleUseCase.execute).toHaveBeenCalledTimes(1);
-      expect(deleteScheduleUseCase.execute).toHaveBeenCalledWith('1');
+      expect(prisma.schedule.findUnique).toHaveBeenCalledWith({
+        where: { id: '1' },
+      });
+      expect(prisma.schedule.delete).toHaveBeenCalledWith({
+        where: { id: '1' },
+      });
       expect(result).toEqual(mockSchedule);
     });
   });

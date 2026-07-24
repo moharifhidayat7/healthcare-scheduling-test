@@ -1,40 +1,59 @@
 import { Test, TestingModule } from '@nestjs/testing';
+import { NotFoundException } from '@nestjs/common';
 import { GetCustomerUseCase } from './get-customer.use-case';
 import { CustomerService } from '../customer.service';
+import { PrismaService } from '../../../integrations/prisma/prisma.service';
+
+type MockPrisma = {
+  customer: { findUnique: jest.Mock };
+};
 
 describe('GetCustomerUseCase', () => {
   let useCase: GetCustomerUseCase;
-  let customerService: jest.Mocked<CustomerService>;
+  let prisma: MockPrisma;
+
+  const mockCustomer = {
+    id: '1',
+    name: 'Test',
+    email: 'test@example.com',
+    createdAt: new Date(),
+    updatedAt: new Date(),
+  };
+
+  const mockPrisma: MockPrisma = {
+    customer: { findUnique: jest.fn() },
+  };
 
   beforeEach(async () => {
+    jest.clearAllMocks();
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         GetCustomerUseCase,
-        { provide: CustomerService, useValue: { findById: jest.fn() } },
+        CustomerService,
+        { provide: PrismaService, useValue: mockPrisma },
       ],
     }).compile();
 
     useCase = module.get(GetCustomerUseCase);
-    customerService = module.get(
-      CustomerService,
-    ) as jest.Mocked<CustomerService>;
+    prisma = module.get(PrismaService) as unknown as MockPrisma;
   });
 
-  it('should call customerService.findById with the id', async () => {
-    const id = '1';
-    const expected = {
-      id,
-      name: 'Test',
-      email: 'test@example.com',
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    };
-    customerService.findById.mockResolvedValue(expected);
+  it('should return the customer when found', async () => {
+    prisma.customer.findUnique.mockResolvedValue(mockCustomer);
 
-    const result = await useCase.execute(id);
+    const result = await useCase.execute('1');
 
-    expect(customerService.findById).toHaveBeenCalledTimes(1);
-    expect(customerService.findById).toHaveBeenCalledWith(id);
-    expect(result).toEqual(expected);
+    expect(prisma.customer.findUnique).toHaveBeenCalledWith({
+      where: { id: '1' },
+    });
+    expect(result).toEqual(mockCustomer);
+  });
+
+  it('should throw NotFoundException when not found', async () => {
+    prisma.customer.findUnique.mockResolvedValue(null);
+
+    await expect(useCase.execute('1')).rejects.toThrow(
+      new NotFoundException('Customer with id 1 not found'),
+    );
   });
 });

@@ -1,49 +1,72 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { GetSchedulesUseCase } from './get-schedules.use-case';
 import { ScheduleService } from '../schedule.service';
+import { PrismaService } from '../../../integrations/prisma/prisma.service';
+
+type MockPrisma = {
+  schedule: { findMany: jest.Mock; count: jest.Mock };
+};
 
 describe('GetSchedulesUseCase', () => {
   let useCase: GetSchedulesUseCase;
-  let scheduleService: jest.Mocked<ScheduleService>;
+  let prisma: MockPrisma;
+
+  const mockSchedule = {
+    id: '1',
+    objective: 'Checkup',
+    customerId: 'cust-1',
+    doctorId: 'doc-1',
+    scheduledAt: new Date('2026-07-24T10:00:00Z'),
+    createdAt: new Date(),
+    updatedAt: new Date(),
+  };
+
+  const mockPrisma: MockPrisma = {
+    schedule: { findMany: jest.fn(), count: jest.fn() },
+  };
 
   beforeEach(async () => {
+    jest.clearAllMocks();
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         GetSchedulesUseCase,
-        { provide: ScheduleService, useValue: { findAll: jest.fn() } },
+        ScheduleService,
+        { provide: PrismaService, useValue: mockPrisma },
       ],
     }).compile();
 
     useCase = module.get(GetSchedulesUseCase);
-    scheduleService = module.get(
-      ScheduleService,
-    ) as jest.Mocked<ScheduleService>;
+    prisma = module.get(PrismaService) as unknown as MockPrisma;
   });
 
-  it('should call scheduleService.findAll with page and limit', async () => {
-    const expected = {
-      data: [],
-      meta: { pagination: { page: 1, limit: 20, total: 0, totalPages: 0 } },
-    };
-    scheduleService.findAll.mockResolvedValue(expected);
+  it('should return paginated results', async () => {
+    prisma.schedule.findMany.mockResolvedValue([mockSchedule]);
+    prisma.schedule.count.mockResolvedValue(1);
 
     const result = await useCase.execute(1, 20);
 
-    expect(scheduleService.findAll).toHaveBeenCalledTimes(1);
-    expect(scheduleService.findAll).toHaveBeenCalledWith(1, 20);
-    expect(result).toEqual(expected);
+    expect(prisma.schedule.findMany).toHaveBeenCalledWith({
+      skip: 0,
+      take: 20,
+      orderBy: { scheduledAt: 'desc' },
+    });
+    expect(prisma.schedule.count).toHaveBeenCalled();
+    expect(result).toEqual({
+      data: [mockSchedule],
+      meta: { pagination: { page: 1, limit: 20, total: 1, totalPages: 1 } },
+    });
   });
 
   it('should use default page=1 and limit=20 when not provided', async () => {
-    const expected = {
-      data: [],
-      meta: { pagination: { page: 1, limit: 20, total: 0, totalPages: 0 } },
-    };
-    scheduleService.findAll.mockResolvedValue(expected);
+    prisma.schedule.findMany.mockResolvedValue([]);
+    prisma.schedule.count.mockResolvedValue(0);
 
-    const result = await useCase.execute();
+    await useCase.execute();
 
-    expect(scheduleService.findAll).toHaveBeenCalledWith(1, 20);
-    expect(result).toEqual(expected);
+    expect(prisma.schedule.findMany).toHaveBeenCalledWith({
+      skip: 0,
+      take: 20,
+      orderBy: { scheduledAt: 'desc' },
+    });
   });
 });

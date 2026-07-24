@@ -1,49 +1,69 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { GetCustomersUseCase } from './get-customers.use-case';
 import { CustomerService } from '../customer.service';
+import { PrismaService } from '../../../integrations/prisma/prisma.service';
+
+type MockPrisma = {
+  customer: { findMany: jest.Mock; count: jest.Mock };
+};
 
 describe('GetCustomersUseCase', () => {
   let useCase: GetCustomersUseCase;
-  let customerService: jest.Mocked<CustomerService>;
+  let prisma: MockPrisma;
+
+  const mockCustomer = {
+    id: '1',
+    name: 'Test',
+    email: 'test@example.com',
+    createdAt: new Date(),
+    updatedAt: new Date(),
+  };
+
+  const mockPrisma: MockPrisma = {
+    customer: { findMany: jest.fn(), count: jest.fn() },
+  };
 
   beforeEach(async () => {
+    jest.clearAllMocks();
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         GetCustomersUseCase,
-        { provide: CustomerService, useValue: { findAll: jest.fn() } },
+        CustomerService,
+        { provide: PrismaService, useValue: mockPrisma },
       ],
     }).compile();
 
     useCase = module.get(GetCustomersUseCase);
-    customerService = module.get(
-      CustomerService,
-    ) as jest.Mocked<CustomerService>;
+    prisma = module.get(PrismaService) as unknown as MockPrisma;
   });
 
-  it('should call customerService.findAll with page and limit', async () => {
-    const expected = {
-      data: [],
-      meta: { pagination: { page: 1, limit: 20, total: 0, totalPages: 0 } },
-    };
-    customerService.findAll.mockResolvedValue(expected);
+  it('should return paginated results', async () => {
+    prisma.customer.findMany.mockResolvedValue([mockCustomer]);
+    prisma.customer.count.mockResolvedValue(1);
 
     const result = await useCase.execute(1, 20);
 
-    expect(customerService.findAll).toHaveBeenCalledTimes(1);
-    expect(customerService.findAll).toHaveBeenCalledWith(1, 20);
-    expect(result).toEqual(expected);
+    expect(prisma.customer.findMany).toHaveBeenCalledWith({
+      skip: 0,
+      take: 20,
+      orderBy: { createdAt: 'desc' },
+    });
+    expect(result).toEqual({
+      data: [mockCustomer],
+      meta: { pagination: { page: 1, limit: 20, total: 1, totalPages: 1 } },
+    });
   });
 
   it('should use default page=1 and limit=20 when not provided', async () => {
-    const expected = {
-      data: [],
-      meta: { pagination: { page: 1, limit: 20, total: 0, totalPages: 0 } },
-    };
-    customerService.findAll.mockResolvedValue(expected);
+    prisma.customer.findMany.mockResolvedValue([]);
+    prisma.customer.count.mockResolvedValue(0);
 
-    const result = await useCase.execute();
+    await useCase.execute();
 
-    expect(customerService.findAll).toHaveBeenCalledWith(1, 20);
-    expect(result).toEqual(expected);
+    expect(prisma.customer.findMany).toHaveBeenCalledWith({
+      skip: 0,
+      take: 20,
+      orderBy: { createdAt: 'desc' },
+    });
   });
 });
