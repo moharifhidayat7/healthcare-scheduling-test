@@ -28,10 +28,18 @@ import { UserJwtService } from './user-jwt.service';
     {
       provide: UserJwtService,
       useFactory: (config: ConfigService) =>
-        new UserJwtService({ secret: config.get<string>('JWT_SECRET'), signOptions: { expiresIn: '24h' } }),
+        new UserJwtService({
+          secret: config.get<string>('JWT_SECRET'),
+          signOptions: { expiresIn: '24h' },
+        }),
       inject: [ConfigService],
     },
   ],
-  exports: [InternalAuthGuard, InternalTokenService, UserJwtValidator, UserTokenService],
+  exports: [
+    InternalAuthGuard,
+    InternalTokenService,
+    UserJwtValidator,
+    UserTokenService,
+  ],
 })
 export class AuthModule {}

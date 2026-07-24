@@ -8,6 +8,11 @@ import { AuthModule as CommonAuthModule } from '../../common/auth/auth.module';
 
 @Module({
   imports: [PrismaModule, CommonAuthModule],
-  providers: [AuthResolver, RegisterUseCase, LoginUseCase, ValidateTokenUseCase],
+  providers: [
+    AuthResolver,
+    RegisterUseCase,
+    LoginUseCase,
+    ValidateTokenUseCase,
+  ],
 })
 export class AuthModule {}

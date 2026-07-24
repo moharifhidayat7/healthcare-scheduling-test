@@ -2,7 +2,9 @@ import * as Joi from 'joi';
 
 export const envVarsSchema = Joi.object({
   // App
-  NODE_ENV: Joi.string().valid('development', 'production', 'test').default('development'),
+  NODE_ENV: Joi.string()
+    .valid('development', 'production', 'test')
+    .default('development'),
   PORT: Joi.number().integer().positive().max(65535).default(3000),
   SERVICE_NAME: Joi.string().default('unknown'),
 

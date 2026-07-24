@@ -12,7 +12,9 @@ export class LoginUseCase {
   ) {}
 
   async execute(input: LoginInput): Promise<{ token: string }> {
-    const user = await this.prisma.user.findUnique({ where: { email: input.email } });
+    const user = await this.prisma.user.findUnique({
+      where: { email: input.email },
+    });
     if (!user) {
       throw new UnauthorizedException('Invalid email or password');
     }

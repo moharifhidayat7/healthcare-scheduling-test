@@ -15,15 +15,23 @@ export class AuthResolver {
     private readonly validateTokenUseCase: ValidateTokenUseCase,
   ) {}
 
-  @Mutation(() => AuthToken, { description: 'Create a new user account. Password is hashed with bcrypt (10 rounds). Returns a JWT.' })
+  @Mutation(() => AuthToken, {
+    description:
+      'Create a new user account. Password is hashed with bcrypt (10 rounds). Returns a JWT.',
+  })
   register(
-    @Args({ name: 'input', description: 'Email and password for the new account' })
+    @Args({
+      name: 'input',
+      description: 'Email and password for the new account',
+    })
     input: RegisterInput,
   ) {
     return this.registerUseCase.execute(input);
   }
 
-  @Mutation(() => AuthToken, { description: 'Authenticate with email and password. Returns a JWT.' })
+  @Mutation(() => AuthToken, {
+    description: 'Authenticate with email and password. Returns a JWT.',
+  })
   login(
     @Args({ name: 'input', description: 'Email and password credentials' })
     input: LoginInput,
@@ -31,7 +39,10 @@ export class AuthResolver {
     return this.loginUseCase.execute(input);
   }
 
-  @Query(() => UserInfo, { description: 'Validate a user JWT and return the decoded user information (id, email, roles).' })
+  @Query(() => UserInfo, {
+    description:
+      'Validate a user JWT and return the decoded user information (id, email, roles).',
+  })
   validateToken(
     @Args({ name: 'token', description: 'JWT token to validate' })
     token: string,

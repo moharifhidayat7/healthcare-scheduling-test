@@ -42,7 +42,8 @@ export class ResponseInterceptor implements NestInterceptor {
             data: res?.data ?? result,
             meta: {
               timestamp: new Date().toISOString(),
-              pagination: (res?.meta as Record<string, unknown>)?.pagination ?? null,
+              pagination:
+                (res?.meta as Record<string, unknown>)?.pagination ?? null,
             },
           };
         }

@@ -54,7 +54,9 @@ describe('LoginUseCase', () => {
 
     const result = await useCase.execute(input);
 
-    expect(userFindUnique).toHaveBeenCalledWith({ where: { email: input.email } });
+    expect(userFindUnique).toHaveBeenCalledWith({
+      where: { email: input.email },
+    });
     expect(bcrypt.compare).toHaveBeenCalledWith(input.password, user.password);
     expect(generate).toHaveBeenCalledWith(user.id, user.email);
     expect(result).toEqual({ token: 'jwt-token' });

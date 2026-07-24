@@ -12,7 +12,9 @@ export class RegisterUseCase {
   ) {}
 
   async execute(input: RegisterInput): Promise<{ token: string }> {
-    const existing = await this.prisma.user.findUnique({ where: { email: input.email } });
+    const existing = await this.prisma.user.findUnique({
+      where: { email: input.email },
+    });
     if (existing) {
       throw new ConflictException('Email already registered');
     }

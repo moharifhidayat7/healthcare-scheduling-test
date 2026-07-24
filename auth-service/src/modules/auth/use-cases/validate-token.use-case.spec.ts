@@ -19,13 +19,19 @@ describe('ValidateTokenUseCase', () => {
     }).compile();
 
     useCase = module.get(ValidateTokenUseCase);
-    userJwtValidator = module.get(UserJwtValidator) as jest.Mocked<UserJwtValidator>;
+    userJwtValidator = module.get(
+      UserJwtValidator,
+    ) as jest.Mocked<UserJwtValidator>;
   });
 
   const token = 'some-jwt';
 
   it('returns payload for a valid token', async () => {
-    const payload = { sub: 'user-1', email: 'test@example.com', roles: ['user'] };
+    const payload = {
+      sub: 'user-1',
+      email: 'test@example.com',
+      roles: ['user'],
+    };
     userJwtValidator.validate.mockResolvedValue(payload);
 
     const result = await useCase.execute(token);

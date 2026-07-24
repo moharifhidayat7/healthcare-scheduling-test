@@ -46,12 +46,18 @@ export class MailProcessor extends WorkerHost {
     });
   }
 
-  private async renderTemplate(name: string, context: Record<string, unknown>): Promise<string> {
+  private async renderTemplate(
+    name: string,
+    context: Record<string, unknown>,
+  ): Promise<string> {
     const cached = this.templateCache.get(name);
     if (cached) {
       return cached(context);
     }
-    const source = await readFile(join('./templates/mail', `${name}.hbs`), 'utf-8');
+    const source = await readFile(
+      join('./templates/mail', `${name}.hbs`),
+      'utf-8',
+    );
     const template = handlebars.compile(source);
     this.templateCache.set(name, template);
     return template(context);

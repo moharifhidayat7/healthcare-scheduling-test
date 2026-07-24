@@ -47,12 +47,20 @@ describe('RegisterUseCase', () => {
     const hashed = '$2b$10$hashed';
     (bcrypt.hash as jest.Mock).mockResolvedValue(hashed);
     userFindUnique.mockResolvedValue(null);
-    userCreate.mockResolvedValue({ id: 'user-1', email: input.email, password: hashed, createdAt: new Date(), updatedAt: new Date() });
+    userCreate.mockResolvedValue({
+      id: 'user-1',
+      email: input.email,
+      password: hashed,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
     generate.mockReturnValue('jwt-token');
 
     const result = await useCase.execute(input);
 
-    expect(userFindUnique).toHaveBeenCalledWith({ where: { email: input.email } });
+    expect(userFindUnique).toHaveBeenCalledWith({
+      where: { email: input.email },
+    });
     expect(bcrypt.hash).toHaveBeenCalledWith(input.password, 10);
     expect(userCreate).toHaveBeenCalledWith({
       data: { email: input.email, password: hashed },
@@ -62,10 +70,18 @@ describe('RegisterUseCase', () => {
   });
 
   it('throws ConflictException when email already exists', async () => {
-    userFindUnique.mockResolvedValue({ id: 'existing', email: input.email, password: 'hash', createdAt: new Date(), updatedAt: new Date() });
+    userFindUnique.mockResolvedValue({
+      id: 'existing',
+      email: input.email,
+      password: 'hash',
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
 
     await expect(useCase.execute(input)).rejects.toThrow(ConflictException);
-    expect(userFindUnique).toHaveBeenCalledWith({ where: { email: input.email } });
+    expect(userFindUnique).toHaveBeenCalledWith({
+      where: { email: input.email },
+    });
     expect(bcrypt.hash).not.toHaveBeenCalled();
     expect(userCreate).not.toHaveBeenCalled();
   });

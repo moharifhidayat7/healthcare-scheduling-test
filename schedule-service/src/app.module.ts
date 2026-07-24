@@ -45,4 +45,4 @@ import { MailModule } from './common/mail/mail.module';
     },
   ],
 })
-export class AppModule { }
+export class AppModule {}

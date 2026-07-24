@@ -39,7 +39,10 @@ describe('AuthResolver', () => {
   });
 
   describe('register', () => {
-    const input: RegisterInput = { email: 'test@example.com', password: 'secret123' };
+    const input: RegisterInput = {
+      email: 'test@example.com',
+      password: 'secret123',
+    };
 
     it('returns a token on successful registration', async () => {
       registerUseCase.execute.mockResolvedValue({ token: 'jwt-token' });
@@ -61,7 +64,10 @@ describe('AuthResolver', () => {
   });
 
   describe('login', () => {
-    const input: LoginInput = { email: 'test@example.com', password: 'secret123' };
+    const input: LoginInput = {
+      email: 'test@example.com',
+      password: 'secret123',
+    };
 
     it('returns a token on successful login', async () => {
       loginUseCase.execute.mockResolvedValue({ token: 'jwt-token' });
@@ -77,7 +83,9 @@ describe('AuthResolver', () => {
         new UnauthorizedException('Invalid email or password'),
       );
 
-      await expect(resolver.login(input)).rejects.toThrow(UnauthorizedException);
+      await expect(resolver.login(input)).rejects.toThrow(
+        UnauthorizedException,
+      );
       expect(loginUseCase.execute).toHaveBeenCalledWith(input);
     });
 
@@ -86,7 +94,9 @@ describe('AuthResolver', () => {
         new UnauthorizedException('Invalid email or password'),
       );
 
-      await expect(resolver.login(input)).rejects.toThrow(UnauthorizedException);
+      await expect(resolver.login(input)).rejects.toThrow(
+        UnauthorizedException,
+      );
     });
   });
 
@@ -111,7 +121,9 @@ describe('AuthResolver', () => {
         new UnauthorizedException('Invalid or expired token'),
       );
 
-      await expect(resolver.validateToken(token)).rejects.toThrow(UnauthorizedException);
+      await expect(resolver.validateToken(token)).rejects.toThrow(
+        UnauthorizedException,
+      );
       expect(validateTokenUseCase.execute).toHaveBeenCalledWith(token);
     });
   });
