@@ -11,6 +11,12 @@ import { ApolloServerPluginLandingPageLocalDefault } from '@apollo/server/plugin
       playground: false,
       introspection: true,
       plugins: [ApolloServerPluginLandingPageLocalDefault()],
+      formatError: (formattedError) => ({
+        message: formattedError.message,
+        statusCode:
+          (formattedError.extensions?.originalError as Record<string, unknown>)
+            ?.statusCode ?? 500,
+      }),
     }),
   ],
 })

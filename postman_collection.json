@@ -1,0 +1,796 @@
+{
+  "info": {
+    "name": "HealthCase Scheduling",
+    "description": "E2E tests for HealthCase Scheduling microservices.\n\n## Setup\n1. Import this collection into Postman\n2. Set `baseUrl` (auth:3001) and `scheduleBaseUrl` (schedule:3002)\n3. Run \"Register — success\" first to populate `authToken`\n4. Then run Customers → Doctors → Schedules in order to chain IDs",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "scheduleBaseUrl",
+      "value": "http://localhost:3002",
+      "type": "string"
+    },
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:3001",
+      "type": "string"
+    },
+    {
+      "key": "authToken",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "testEmail",
+      "value": "e2e@test.com",
+      "type": "string"
+    },
+    {
+      "key": "testPassword",
+      "value": "secret123",
+      "type": "string"
+    },
+    {
+      "key": "customerId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "doctorId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "scheduleId",
+      "value": "",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "Auth",
+      "item": [
+        {
+          "name": "Register — success",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const json = pm.response.json();",
+                  "pm.test('returns 200', () => pm.response.to.have.status(200));",
+                  "pm.test('has token', () => {",
+                  "  pm.expect(json.data.register.token).to.be.a('string');",
+                  "});",
+                  "pm.collectionVariables.set('authToken', json.data.register.token);",
+                  ""
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "graphql",
+              "graphql": {
+                "query": "mutation Register($input: RegisterInput!) {\n  register(input: $input) {\n    token\n  }\n}",
+                "variables": "{\n  \"input\": {\n    \"email\": \"{{testEmail}}\",\n    \"password\": \"{{testPassword}}\"\n  }\n}"
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/graphql",
+              "host": ["{{baseUrl}}"],
+              "path": ["graphql"]
+            }
+          }
+        },
+        {
+          "name": "Register — duplicate email",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const json = pm.response.json();",
+                  "pm.test('returns 200', () => pm.response.to.have.status(200));",
+                  "pm.test('returns ConflictException', () => {",
+                  "  pm.expect(json.errors[0].extensions.originalError.statusCode).to.eql(409);",
+                  "  pm.expect(json.errors[0].message).to.eql('Email already registered');",
+                  "});",
+                  ""
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "graphql",
+              "graphql": {
+                "query": "mutation Register($input: RegisterInput!) {\n  register(input: $input) {\n    token\n  }\n}",
+                "variables": "{\n  \"input\": {\n    \"email\": \"{{testEmail}}\",\n    \"password\": \"{{testPassword}}\"\n  }\n}"
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/graphql",
+              "host": ["{{baseUrl}}"],
+              "path": ["graphql"]
+            }
+          }
+        },
+        {
+          "name": "Register — invalid email",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const json = pm.response.json();",
+                  "pm.test('returns 200', () => pm.response.to.have.status(200));",
+                  "pm.test('returns BadRequest', () => {",
+                  "  pm.expect(json.errors[0].extensions.originalError.statusCode).to.eql(400);",
+                  "});",
+                  ""
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "graphql",
+              "graphql": {
+                "query": "mutation Register($input: RegisterInput!) {\n  register(input: $input) {\n    token\n  }\n}",
+                "variables": "{\n  \"input\": {\n    \"email\": \"not-an-email\",\n    \"password\": \"secret123\"\n  }\n}"
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/graphql",
+              "host": ["{{baseUrl}}"],
+              "path": ["graphql"]
+            }
+          }
+        },
+        {
+          "name": "Register — short password",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const json = pm.response.json();",
+                  "pm.test('returns 200', () => pm.response.to.have.status(200));",
+                  "pm.test('returns BadRequest', () => {",
+                  "  pm.expect(json.errors[0].extensions.originalError.statusCode).to.eql(400);",
+                  "});",
+                  ""
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "graphql",
+              "graphql": {
+                "query": "mutation Register($input: RegisterInput!) {\n  register(input: $input) {\n    token\n  }\n}",
+                "variables": "{\n  \"input\": {\n    \"email\": \"shortpw@test.com\",\n    \"password\": \"ab\"\n  }\n}"
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/graphql",
+              "host": ["{{baseUrl}}"],
+              "path": ["graphql"]
+            }
+          }
+        },
+        {
+          "name": "Login — success",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const json = pm.response.json();",
+                  "pm.test('returns 200', () => pm.response.to.have.status(200));",
+                  "pm.test('has token', () => {",
+                  "  pm.expect(json.data.login.token).to.be.a('string');",
+                  "});",
+                  ""
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "graphql",
+              "graphql": {
+                "query": "mutation Login($input: LoginInput!) {\n  login(input: $input) {\n    token\n  }\n}",
+                "variables": "{\n  \"input\": {\n    \"email\": \"{{testEmail}}\",\n    \"password\": \"{{testPassword}}\"\n  }\n}"
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/graphql",
+              "host": ["{{baseUrl}}"],
+              "path": ["graphql"]
+            }
+          }
+        },
+        {
+          "name": "Login — wrong password",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const json = pm.response.json();",
+                  "pm.test('returns 200', () => pm.response.to.have.status(200));",
+                  "pm.test('returns Unauthorized', () => {",
+                  "  pm.expect(json.errors[0].extensions.originalError.statusCode).to.eql(401);",
+                  "});",
+                  ""
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "graphql",
+              "graphql": {
+                "query": "mutation Login($input: LoginInput!) {\n  login(input: $input) {\n    token\n  }\n}",
+                "variables": "{\n  \"input\": {\n    \"email\": \"{{testEmail}}\",\n    \"password\": \"WRONG_PASSWORD\"\n  }\n}"
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/graphql",
+              "host": ["{{baseUrl}}"],
+              "path": ["graphql"]
+            }
+          }
+        },
+        {
+          "name": "Login — non-existent user",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const json = pm.response.json();",
+                  "pm.test('returns 200', () => pm.response.to.have.status(200));",
+                  "pm.test('returns Unauthorized', () => {",
+                  "  pm.expect(json.errors[0].extensions.originalError.statusCode).to.eql(401);",
+                  "});",
+                  ""
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "graphql",
+              "graphql": {
+                "query": "mutation Login($input: LoginInput!) {\n  login(input: $input) {\n    token\n  }\n}",
+                "variables": "{\n  \"input\": {\n    \"email\": \"doesnotexist@test.com\",\n    \"password\": \"secret123\"\n  }\n}"
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/graphql",
+              "host": ["{{baseUrl}}"],
+              "path": ["graphql"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Customers",
+      "item": [
+        {
+          "name": "Create customer",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const json = pm.response.json();",
+                  "pm.test('returns 200', () => pm.response.to.have.status(200));",
+                  "pm.test('has id', () => {",
+                  "  pm.expect(json.data.createCustomer.id).to.be.a('string');",
+                  "});",
+                  "pm.collectionVariables.set('customerId', json.data.createCustomer.id);",
+                  ""
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              }
+            ],
+            "body": {
+              "mode": "graphql",
+              "graphql": {
+                "query": "mutation CreateCustomer($input: CreateCustomerInput!) {\n  createCustomer(input: $input) {\n    id\n    name\n    email\n    createdAt\n  }\n}",
+                "variables": "{\n  \"input\": {\n    \"name\": \"John Doe\",\n    \"email\": \"john@example.com\"\n  }\n}"
+              }
+            },
+            "url": {
+              "raw": "{{scheduleBaseUrl}}/graphql",
+              "host": ["{{scheduleBaseUrl}}"],
+              "path": ["graphql"]
+            }
+          }
+        },
+        {
+          "name": "List customers",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const json = pm.response.json();",
+                  "pm.test('returns 200', () => pm.response.to.have.status(200));",
+                  "pm.test('has data', () => {",
+                  "  pm.expect(json.data.customers.data).to.be.an('array');",
+                  "});",
+                  ""
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              }
+            ],
+            "body": {
+              "mode": "graphql",
+              "graphql": {
+                "query": "query Customers($limit: Int, $offset: Int) {\n  customers(limit: $limit, offset: $offset) {\n    data {\n      id\n      name\n      email\n      createdAt\n    }\n    meta {\n      total\n    }\n  }\n}",
+                "variables": "{\n  \"limit\": 10,\n  \"offset\": 0\n}"
+              }
+            },
+            "url": {
+              "raw": "{{scheduleBaseUrl}}/graphql",
+              "host": ["{{scheduleBaseUrl}}"],
+              "path": ["graphql"]
+            }
+          }
+        },
+        {
+          "name": "Get customer by ID",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const json = pm.response.json();",
+                  "pm.test('returns 200', () => pm.response.to.have.status(200));",
+                  "pm.test('returns matching customer', () => {",
+                  "  pm.expect(json.data.customer.id).to.eql(pm.collectionVariables.get('customerId'));",
+                  "});",
+                  ""
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              }
+            ],
+            "body": {
+              "mode": "graphql",
+              "graphql": {
+                "query": "query Customer($id: ID!) {\n  customer(id: $id) {\n    id\n    name\n    email\n    createdAt\n  }\n}",
+                "variables": "{\n  \"id\": \"{{customerId}}\"\n}"
+              }
+            },
+            "url": {
+              "raw": "{{scheduleBaseUrl}}/graphql",
+              "host": ["{{scheduleBaseUrl}}"],
+              "path": ["graphql"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Doctors",
+      "item": [
+        {
+          "name": "Create doctor",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const json = pm.response.json();",
+                  "pm.test('returns 200', () => pm.response.to.have.status(200));",
+                  "pm.test('has id', () => {",
+                  "  pm.expect(json.data.createDoctor.id).to.be.a('string');",
+                  "});",
+                  "pm.collectionVariables.set('doctorId', json.data.createDoctor.id);",
+                  ""
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              }
+            ],
+            "body": {
+              "mode": "graphql",
+              "graphql": {
+                "query": "mutation CreateDoctor($input: CreateDoctorInput!) {\n  createDoctor(input: $input) {\n    id\n    name\n    createdAt\n  }\n}",
+                "variables": "{\n  \"input\": {\n    \"name\": \"Dr. Smith\"\n  }\n}"
+              }
+            },
+            "url": {
+              "raw": "{{scheduleBaseUrl}}/graphql",
+              "host": ["{{scheduleBaseUrl}}"],
+              "path": ["graphql"]
+            }
+          }
+        },
+        {
+          "name": "List doctors",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const json = pm.response.json();",
+                  "pm.test('returns 200', () => pm.response.to.have.status(200));",
+                  "pm.test('has data', () => {",
+                  "  pm.expect(json.data.doctors.data).to.be.an('array');",
+                  "});",
+                  ""
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              }
+            ],
+            "body": {
+              "mode": "graphql",
+              "graphql": {
+                "query": "query Doctors($limit: Int, $offset: Int) {\n  doctors(limit: $limit, offset: $offset) {\n    data {\n      id\n      name\n      createdAt\n    }\n    meta {\n      total\n    }\n  }\n}",
+                "variables": "{\n  \"limit\": 10,\n  \"offset\": 0\n}"
+              }
+            },
+            "url": {
+              "raw": "{{scheduleBaseUrl}}/graphql",
+              "host": ["{{scheduleBaseUrl}}"],
+              "path": ["graphql"]
+            }
+          }
+        },
+        {
+          "name": "Get doctor by ID",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const json = pm.response.json();",
+                  "pm.test('returns 200', () => pm.response.to.have.status(200));",
+                  "pm.test('returns matching doctor', () => {",
+                  "  pm.expect(json.data.doctor.id).to.eql(pm.collectionVariables.get('doctorId'));",
+                  "});",
+                  ""
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              }
+            ],
+            "body": {
+              "mode": "graphql",
+              "graphql": {
+                "query": "query Doctor($id: ID!) {\n  doctor(id: $id) {\n    id\n    name\n    createdAt\n  }\n}",
+                "variables": "{\n  \"id\": \"{{doctorId}}\"\n}"
+              }
+            },
+            "url": {
+              "raw": "{{scheduleBaseUrl}}/graphql",
+              "host": ["{{scheduleBaseUrl}}"],
+              "path": ["graphql"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Schedules",
+      "item": [
+        {
+          "name": "Create schedule",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const json = pm.response.json();",
+                  "pm.test('returns 200', () => pm.response.to.have.status(200));",
+                  "pm.test('has id', () => {",
+                  "  pm.expect(json.data.createSchedule.id).to.be.a('string');",
+                  "});",
+                  "pm.collectionVariables.set('scheduleId', json.data.createSchedule.id);",
+                  ""
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              }
+            ],
+            "body": {
+              "mode": "graphql",
+              "graphql": {
+                "query": "mutation CreateSchedule($input: CreateScheduleInput!) {\n  createSchedule(input: $input) {\n    id\n    objective\n    customerId\n    doctorId\n    scheduledAt\n  }\n}",
+                "variables": "{\n  \"input\": {\n    \"objective\": \"Checkup\",\n    \"customerId\": \"{{customerId}}\",\n    \"doctorId\": \"{{doctorId}}\",\n    \"scheduledAt\": \"2026-08-01T10:00:00.000Z\"\n  }\n}"
+              }
+            },
+            "url": {
+              "raw": "{{scheduleBaseUrl}}/graphql",
+              "host": ["{{scheduleBaseUrl}}"],
+              "path": ["graphql"]
+            }
+          }
+        },
+        {
+          "name": "List schedules",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const json = pm.response.json();",
+                  "pm.test('returns 200', () => pm.response.to.have.status(200));",
+                  "pm.test('has data', () => {",
+                  "  pm.expect(json.data.schedules.data).to.be.an('array');",
+                  "});",
+                  ""
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              }
+            ],
+            "body": {
+              "mode": "graphql",
+              "graphql": {
+                "query": "query Schedules($limit: Int, $offset: Int) {\n  schedules(limit: $limit, offset: $offset) {\n    data {\n      id\n      objective\n      customerId\n      doctorId\n      scheduledAt\n      createdAt\n    }\n    meta {\n      total\n    }\n  }\n}",
+                "variables": "{\n  \"limit\": 10,\n  \"offset\": 0\n}"
+              }
+            },
+            "url": {
+              "raw": "{{scheduleBaseUrl}}/graphql",
+              "host": ["{{scheduleBaseUrl}}"],
+              "path": ["graphql"]
+            }
+          }
+        },
+        {
+          "name": "Get schedule by ID",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const json = pm.response.json();",
+                  "pm.test('returns 200', () => pm.response.to.have.status(200));",
+                  "pm.test('returns matching schedule', () => {",
+                  "  pm.expect(json.data.schedule.id).to.eql(pm.collectionVariables.get('scheduleId'));",
+                  "});",
+                  ""
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              }
+            ],
+            "body": {
+              "mode": "graphql",
+              "graphql": {
+                "query": "query Schedule($id: ID!) {\n  schedule(id: $id) {\n    id\n    objective\n    customerId\n    doctorId\n    scheduledAt\n  }\n}",
+                "variables": "{\n  \"id\": \"{{scheduleId}}\"\n}"
+              }
+            },
+            "url": {
+              "raw": "{{scheduleBaseUrl}}/graphql",
+              "host": ["{{scheduleBaseUrl}}"],
+              "path": ["graphql"]
+            }
+          }
+        },
+        {
+          "name": "Delete schedule",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const json = pm.response.json();",
+                  "pm.test('returns 200', () => pm.response.to.have.status(200));",
+                  "pm.test('deletes successfully', () => {",
+                  "  pm.expect(json.data.deleteSchedule.id).to.eql(pm.collectionVariables.get('scheduleId'));",
+                  "});",
+                  ""
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              }
+            ],
+            "body": {
+              "mode": "graphql",
+              "graphql": {
+                "query": "mutation DeleteSchedule($id: ID!) {\n  deleteSchedule(id: $id) {\n    id\n  }\n}",
+                "variables": "{\n  \"id\": \"{{scheduleId}}\"\n}"
+              }
+            },
+            "url": {
+              "raw": "{{scheduleBaseUrl}}/graphql",
+              "host": ["{{scheduleBaseUrl}}"],
+              "path": ["graphql"]
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

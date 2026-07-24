@@ -22,6 +22,8 @@ import { MailModule } from './common/mail/mail.module';
       isGlobal: true,
       validationSchema: envVarsSchema,
     }),
+    GraphqlModule,
+    PrismaModule,
     RedisModule,
     BullMqModule,
     CacheModule,
@@ -43,4 +45,4 @@ import { MailModule } from './common/mail/mail.module';
     },
   ],
 })
-export class AppModule {}
+export class AppModule { }

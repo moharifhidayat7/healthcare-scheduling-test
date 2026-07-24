@@ -16,7 +16,7 @@ export class RemoteAuthValidator extends TokenValidator {
 
   async validate(token: string): Promise<JwtPayload> {
     const query = `
-      mutation ValidateToken($token: String!) {
+      query ValidateToken($token: String!) {
         validateToken(token: $token) {
           sub
           email
