@@ -63,9 +63,37 @@ services:
       postgresql:
         condition: service_healthy
 
+  schedule-service:
+    build:
+      context: ./schedule-service
+    container_name: ${COMPOSE_PROJECT_NAME:-hss}-schedule-service
+    restart: unless-stopped
+    ports:
+      - "3002:3000"
+    environment:
+      PORT: 3000
+      SERVICE_NAME: schedule-service
+      NODE_ENV: development
+      DB_HOST: postgresql
+      DB_PORT: 5432
+      DB_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      DB_NAME: schedule_service
+      DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgresql:5432/schedule_service
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-}
+      REDIS_DB: ${REDIS_DB:-0}
+      INTERNAL_JWT_SECRET: ${INTERNAL_JWT_SECRET:-change-this-to-a-random-secret}
+    networks:
+      - backend
+    depends_on:
+      postgresql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
   # ─── Migrations (one-off) ────────────────────────────
   # Run with: docker compose run --rm migrate-<service>
-  # Add a new entry for each service that owns a database.
 
   migrate-auth-service:
     build:
@@ -73,6 +101,20 @@ services:
     container_name: ${COMPOSE_PROJECT_NAME:-hss}-migrate-auth
     environment:
       DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgresql:5432/auth_service
+    networks:
+      - backend
+    depends_on:
+      postgresql:
+        condition: service_healthy
+    command: >
+      sh -c "npx prisma migrate deploy && npx prisma generate"
+
+  migrate-schedule-service:
+    build:
+      context: ./schedule-service
+    container_name: ${COMPOSE_PROJECT_NAME:-hss}-migrate-schedule
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgresql:5432/schedule_service
     networks:
       - backend
     depends_on:

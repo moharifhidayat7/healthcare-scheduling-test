@@ -16,6 +16,8 @@ WORKDIR /app
 ENV NODE_ENV=production \
   PATH=/app/node_modules/.bin:$PATH
 
+COPY --from=builder /app/prisma.config.ts ./
+
 COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/dist ./dist
 COPY --from=builder /app/generated ./dist/generated
