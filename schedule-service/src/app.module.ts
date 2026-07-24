@@ -1,9 +1,8 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
-import { APP_INTERCEPTOR, APP_FILTER } from '@nestjs/core';
+import { APP_INTERCEPTOR } from '@nestjs/core';
 import { PrismaModule } from './integrations/prisma/prisma.module';
 import { GraphqlModule } from './integrations/graphql/graphql.module';
-// import { EmptyModule } from './modules/empty/empty.module';
 import { CustomerModule } from './modules/customer/customer.module';
 import { DoctorModule } from './modules/doctor/doctor.module';
 import { ScheduleModule } from './modules/schedule/schedule.module';
@@ -11,7 +10,6 @@ import { HealthModule } from './modules/health/health.module';
 import { AuthModule } from './common/auth/auth.module';
 import { LoggingInterceptor } from './common/interceptors/logging.interceptor';
 import { ResponseInterceptor } from './common/interceptors/response.interceptor';
-import { GlobalExceptionFilter } from './common/filters/global-exception.filter';
 import { envVarsSchema } from './config/env-vars.schema';
 import { RedisModule } from './integrations/redis/redis.module';
 import { BullMqModule } from './integrations/bullmq/bullmq.module';
@@ -27,7 +25,6 @@ import { MailModule } from './common/mail/mail.module';
     RedisModule,
     BullMqModule,
     CacheModule,
-    //    EmptyModule,
     CustomerModule,
     DoctorModule,
     ScheduleModule,
@@ -43,10 +40,6 @@ import { MailModule } from './common/mail/mail.module';
     {
       provide: APP_INTERCEPTOR,
       useClass: ResponseInterceptor,
-    },
-    {
-      provide: APP_FILTER,
-      useClass: GlobalExceptionFilter,
     },
   ],
 })

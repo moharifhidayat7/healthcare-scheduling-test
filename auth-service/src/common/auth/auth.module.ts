@@ -1,11 +1,12 @@
 import { Module } from '@nestjs/common';
-import { JwtModule, JwtService } from '@nestjs/jwt';
+import { JwtModule } from '@nestjs/jwt';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { InternalJwtValidator } from './strategies/internal-jwt.validator';
 import { UserJwtValidator } from './strategies/user-jwt.validator';
 import { InternalAuthGuard } from './internal.guard';
 import { InternalTokenService } from './internal-token.service';
-import { UserTokenService, USER_JWT_SERVICE } from './user-token.service';
+import { UserTokenService } from './user-token.service';
+import { UserJwtService } from './user-jwt.service';
 
 @Module({
   imports: [
@@ -25,9 +26,9 @@ import { UserTokenService, USER_JWT_SERVICE } from './user-token.service';
     UserJwtValidator,
     UserTokenService,
     {
-      provide: USER_JWT_SERVICE,
+      provide: UserJwtService,
       useFactory: (config: ConfigService) =>
-        new JwtService({ secret: config.get<string>('JWT_SECRET'), signOptions: { expiresIn: '24h' } }),
+        new UserJwtService({ secret: config.get<string>('JWT_SECRET'), signOptions: { expiresIn: '24h' } }),
       inject: [ConfigService],
     },
   ],

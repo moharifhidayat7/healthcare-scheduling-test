@@ -1,11 +1,10 @@
-import { Inject, Injectable } from '@nestjs/common';
-import { JwtService } from '@nestjs/jwt';
+import { Injectable } from '@nestjs/common';
 import { TokenValidator, JwtPayload } from '../token-validator';
-import { USER_JWT_SERVICE } from '../user-token.service';
+import { UserJwtService } from '../user-jwt.service';
 
 @Injectable()
 export class UserJwtValidator extends TokenValidator {
-  constructor(@Inject(USER_JWT_SERVICE) private readonly jwtService: JwtService) {
+  constructor(private readonly jwtService: UserJwtService) {
     super();
   }
 
