@@ -53,11 +53,21 @@ describe('DoctorResolver', () => {
       .compile();
 
     resolver = module.get(DoctorResolver);
-    createDoctorUseCase = module.get(CreateDoctorUseCase) as jest.Mocked<CreateDoctorUseCase>;
-    updateDoctorUseCase = module.get(UpdateDoctorUseCase) as jest.Mocked<UpdateDoctorUseCase>;
-    getDoctorUseCase = module.get(GetDoctorUseCase) as jest.Mocked<GetDoctorUseCase>;
-    getDoctorsUseCase = module.get(GetDoctorsUseCase) as jest.Mocked<GetDoctorsUseCase>;
-    deleteDoctorUseCase = module.get(DeleteDoctorUseCase) as jest.Mocked<DeleteDoctorUseCase>;
+    createDoctorUseCase = module.get(
+      CreateDoctorUseCase,
+    ) as jest.Mocked<CreateDoctorUseCase>;
+    updateDoctorUseCase = module.get(
+      UpdateDoctorUseCase,
+    ) as jest.Mocked<UpdateDoctorUseCase>;
+    getDoctorUseCase = module.get(
+      GetDoctorUseCase,
+    ) as jest.Mocked<GetDoctorUseCase>;
+    getDoctorsUseCase = module.get(
+      GetDoctorsUseCase,
+    ) as jest.Mocked<GetDoctorsUseCase>;
+    deleteDoctorUseCase = module.get(
+      DeleteDoctorUseCase,
+    ) as jest.Mocked<DeleteDoctorUseCase>;
   });
 
   describe('doctors', () => {
@@ -83,7 +93,10 @@ describe('DoctorResolver', () => {
 
       await resolver.doctors(undefined, undefined);
 
-      expect(getDoctorsUseCase.execute).toHaveBeenCalledWith(undefined, undefined);
+      expect(getDoctorsUseCase.execute).toHaveBeenCalledWith(
+        undefined,
+        undefined,
+      );
     });
   });
 

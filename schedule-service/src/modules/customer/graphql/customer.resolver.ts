@@ -1,4 +1,11 @@
-import { Resolver, Query, Mutation, Args, Int, ObjectType } from '@nestjs/graphql';
+import {
+  Resolver,
+  Query,
+  Mutation,
+  Args,
+  Int,
+  ObjectType,
+} from '@nestjs/graphql';
 import { UseGuards } from '@nestjs/common';
 import { ExternalAuthGuard } from '../../../common/auth/external.guard';
 import { PaginatedType } from '../../../common/pagination/pagination.type';

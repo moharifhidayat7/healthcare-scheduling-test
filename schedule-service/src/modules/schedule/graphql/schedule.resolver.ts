@@ -1,4 +1,11 @@
-import { Resolver, Query, Mutation, Args, Int, ObjectType } from '@nestjs/graphql';
+import {
+  Resolver,
+  Query,
+  Mutation,
+  Args,
+  Int,
+  ObjectType,
+} from '@nestjs/graphql';
 import { UseGuards } from '@nestjs/common';
 import { ExternalAuthGuard } from '../../../common/auth/external.guard';
 import { PaginatedType } from '../../../common/pagination/pagination.type';
@@ -54,7 +61,8 @@ export class ScheduleResolver {
   }
 
   @Mutation(() => ScheduleType, {
-    description: 'Create a new schedule with objective, customer, doctor, and scheduled time',
+    description:
+      'Create a new schedule with objective, customer, doctor, and scheduled time',
   })
   async createSchedule(
     @Args('input', { description: 'Schedule creation payload' })

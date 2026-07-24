@@ -15,12 +15,20 @@ describe('UpdateCustomerUseCase', () => {
     }).compile();
 
     useCase = module.get(UpdateCustomerUseCase);
-    customerService = module.get(CustomerService) as jest.Mocked<CustomerService>;
+    customerService = module.get(
+      CustomerService,
+    ) as jest.Mocked<CustomerService>;
   });
 
   it('should call customerService.update with the input', async () => {
     const input = { id: '1', name: 'Updated' };
-    const expected = { id: '1', name: 'Updated', email: 'test@example.com', createdAt: new Date(), updatedAt: new Date() };
+    const expected = {
+      id: '1',
+      name: 'Updated',
+      email: 'test@example.com',
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
     customerService.update.mockResolvedValue(expected);
 
     const result = await useCase.execute(input);

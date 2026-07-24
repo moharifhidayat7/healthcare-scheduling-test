@@ -25,6 +25,11 @@ import { InternalTokenService } from './internal-token.service';
     ExternalAuthGuard,
     InternalTokenService,
   ],
-  exports: [InternalAuthGuard, ExternalAuthGuard, InternalTokenService, RemoteAuthValidator],
+  exports: [
+    InternalAuthGuard,
+    ExternalAuthGuard,
+    InternalTokenService,
+    RemoteAuthValidator,
+  ],
 })
 export class AuthModule {}

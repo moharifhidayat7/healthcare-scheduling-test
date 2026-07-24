@@ -15,12 +15,20 @@ describe('DeleteCustomerUseCase', () => {
     }).compile();
 
     useCase = module.get(DeleteCustomerUseCase);
-    customerService = module.get(CustomerService) as jest.Mocked<CustomerService>;
+    customerService = module.get(
+      CustomerService,
+    ) as jest.Mocked<CustomerService>;
   });
 
   it('should call customerService.delete with the id', async () => {
     const id = '1';
-    const expected = { id, name: 'Test', email: 'test@example.com', createdAt: new Date(), updatedAt: new Date() };
+    const expected = {
+      id,
+      name: 'Test',
+      email: 'test@example.com',
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
     customerService.delete.mockResolvedValue(expected);
 
     const result = await useCase.execute(id);

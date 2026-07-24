@@ -15,7 +15,9 @@ describe('GetCustomersUseCase', () => {
     }).compile();
 
     useCase = module.get(GetCustomersUseCase);
-    customerService = module.get(CustomerService) as jest.Mocked<CustomerService>;
+    customerService = module.get(
+      CustomerService,
+    ) as jest.Mocked<CustomerService>;
   });
 
   it('should call customerService.findAll with page and limit', async () => {

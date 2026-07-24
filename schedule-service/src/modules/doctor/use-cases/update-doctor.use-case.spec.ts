@@ -20,7 +20,12 @@ describe('UpdateDoctorUseCase', () => {
 
   it('should call doctorService.update with the input', async () => {
     const input = { id: '1', name: 'Dr. Updated' };
-    const expected = { id: '1', name: 'Dr. Updated', createdAt: new Date(), updatedAt: new Date() };
+    const expected = {
+      id: '1',
+      name: 'Dr. Updated',
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
     doctorService.update.mockResolvedValue(expected);
 
     const result = await useCase.execute(input);

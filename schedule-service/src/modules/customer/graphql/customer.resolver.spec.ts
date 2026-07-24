@@ -54,11 +54,21 @@ describe('CustomerResolver', () => {
       .compile();
 
     resolver = module.get(CustomerResolver);
-    createCustomerUseCase = module.get(CreateCustomerUseCase) as jest.Mocked<CreateCustomerUseCase>;
-    updateCustomerUseCase = module.get(UpdateCustomerUseCase) as jest.Mocked<UpdateCustomerUseCase>;
-    getCustomerUseCase = module.get(GetCustomerUseCase) as jest.Mocked<GetCustomerUseCase>;
-    getCustomersUseCase = module.get(GetCustomersUseCase) as jest.Mocked<GetCustomersUseCase>;
-    deleteCustomerUseCase = module.get(DeleteCustomerUseCase) as jest.Mocked<DeleteCustomerUseCase>;
+    createCustomerUseCase = module.get(
+      CreateCustomerUseCase,
+    ) as jest.Mocked<CreateCustomerUseCase>;
+    updateCustomerUseCase = module.get(
+      UpdateCustomerUseCase,
+    ) as jest.Mocked<UpdateCustomerUseCase>;
+    getCustomerUseCase = module.get(
+      GetCustomerUseCase,
+    ) as jest.Mocked<GetCustomerUseCase>;
+    getCustomersUseCase = module.get(
+      GetCustomersUseCase,
+    ) as jest.Mocked<GetCustomersUseCase>;
+    deleteCustomerUseCase = module.get(
+      DeleteCustomerUseCase,
+    ) as jest.Mocked<DeleteCustomerUseCase>;
   });
 
   describe('customers', () => {
@@ -84,7 +94,10 @@ describe('CustomerResolver', () => {
 
       await resolver.customers(undefined, undefined);
 
-      expect(getCustomersUseCase.execute).toHaveBeenCalledWith(undefined, undefined);
+      expect(getCustomersUseCase.execute).toHaveBeenCalledWith(
+        undefined,
+        undefined,
+      );
     });
   });
 

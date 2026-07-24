@@ -20,7 +20,12 @@ describe('CreateDoctorUseCase', () => {
 
   it('should call doctorService.create with the input', async () => {
     const input = { name: 'Dr. Smith' };
-    const expected = { id: '1', ...input, createdAt: new Date(), updatedAt: new Date() };
+    const expected = {
+      id: '1',
+      ...input,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
     doctorService.create.mockResolvedValue(expected);
 
     const result = await useCase.execute(input);

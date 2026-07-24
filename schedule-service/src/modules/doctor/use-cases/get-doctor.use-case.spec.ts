@@ -20,7 +20,12 @@ describe('GetDoctorUseCase', () => {
 
   it('should call doctorService.findById with the id', async () => {
     const id = '1';
-    const expected = { id, name: 'Dr. Smith', createdAt: new Date(), updatedAt: new Date() };
+    const expected = {
+      id,
+      name: 'Dr. Smith',
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
     doctorService.findById.mockResolvedValue(expected);
 
     const result = await useCase.execute(id);
