@@ -5,6 +5,7 @@ import { PrismaModule } from './integrations/prisma/prisma.module';
 import { GraphqlModule } from './integrations/graphql/graphql.module';
 // import { EmptyModule } from './modules/empty/empty.module';
 import { CustomerModule } from './modules/customer/customer.module';
+import { DoctorModule } from './modules/doctor/doctor.module';
 import { HealthModule } from './modules/health/health.module';
 import { AuthModule } from './common/auth/auth.module';
 import { LoggingInterceptor } from './common/interceptors/logging.interceptor';
@@ -27,6 +28,7 @@ import { MailModule } from './common/mail/mail.module';
     GraphqlModule,
     //    EmptyModule,
     CustomerModule,
+    DoctorModule,
     HealthModule,
     AuthModule,
     MailModule,
