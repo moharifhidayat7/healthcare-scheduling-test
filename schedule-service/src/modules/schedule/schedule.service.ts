@@ -8,7 +8,7 @@ import { CreateScheduleInput } from './graphql/inputs/create-schedule.input';
 
 @Injectable()
 export class ScheduleService {
-  constructor(private readonly prisma: PrismaService) { }
+  constructor(private readonly prisma: PrismaService) {}
 
   async create(input: CreateScheduleInput) {
     const [customer, doctor] = await Promise.all([
