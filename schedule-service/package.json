@@ -1,7 +1,7 @@
 {
-  "name": "nest-ms-boilerplate",
+  "name": "schedule-service",
   "version": "0.0.1",
-  "description": "NestJS Microservice boilerplate",
+  "description": "Schedule Service",
   "author": "",
   "private": true,
   "license": "UNLICENSED",
