@@ -9,16 +9,31 @@ datasource db {
 }
 
 model Customer {
-  id        String   @id @default(uuid())
+  id        String     @id @default(uuid())
   name      String
-  email     String   @unique
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  email     String     @unique
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+  schedules Schedule[]
 }
 
 model Doctor {
-  id        String   @id @default(uuid())
+  id        String     @id @default(uuid())
   name      String
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+  schedules Schedule[]
+}
+
+model Schedule {
+  id          String   @id @default(uuid())
+  objective   String
+  customerId  String
+  doctorId    String
+  scheduledAt DateTime
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  customer Customer @relation(fields: [customerId], references: [id])
+  doctor   Doctor   @relation(fields: [doctorId], references: [id])
 }
