@@ -15,8 +15,16 @@ export class MailService {
   async send(options: SendMailOptions): Promise<void> {
     const from = this.config.get<string>('MAIL_FROM') ?? 'noreply@example.com';
     const to = Array.isArray(options.to) ? options.to : [options.to];
-    const cc = options.cc ? (Array.isArray(options.cc) ? options.cc : [options.cc]) : undefined;
-    const bcc = options.bcc ? (Array.isArray(options.bcc) ? options.bcc : [options.bcc]) : undefined;
+    const cc = options.cc
+      ? Array.isArray(options.cc)
+        ? options.cc
+        : [options.cc]
+      : undefined;
+    const bcc = options.bcc
+      ? Array.isArray(options.bcc)
+        ? options.bcc
+        : [options.bcc]
+      : undefined;
 
     const payload: MailJobPayload = {
       from,

@@ -1,10 +1,8 @@
 import { Module } from '@nestjs/common';
 import { JwtModule } from '@nestjs/jwt';
 import { ConfigModule, ConfigService } from '@nestjs/config';
-import { RemoteAuthValidator } from './strategies/remote-auth.validator';
 import { InternalJwtValidator } from './strategies/internal-jwt.validator';
 import { InternalAuthGuard } from './internal.guard';
-import { ExternalAuthGuard } from './external.guard';
 import { InternalTokenService } from './internal-token.service';
 
 @Module({
@@ -20,11 +18,9 @@ import { InternalTokenService } from './internal-token.service';
   ],
   providers: [
     InternalJwtValidator,
-    RemoteAuthValidator,
     InternalAuthGuard,
-    ExternalAuthGuard,
     InternalTokenService,
   ],
-  exports: [InternalAuthGuard, ExternalAuthGuard, InternalTokenService],
+  exports: [InternalAuthGuard, InternalTokenService],
 })
 export class AuthModule {}

@@ -30,13 +30,11 @@ src/
 │   │   ├── auth.module.ts
 │   │   ├── auth.guard.ts          ← base guard
 │   │   ├── internal.guard.ts      ← validates internal JWT
-│   │   ├── external.guard.ts      ← calls Auth Service
 │   │   ├── current-user.decorator.ts
 │   │   ├── internal-token.service.ts  ← generates outgoing JWTs
 │   │   ├── token-validator.ts     ← abstract class + JwtPayload type
 │   │   └── strategies/
-│   │       ├── internal-jwt.validator.ts
-│   │       └── remote-auth.validator.ts
+│   │       └── internal-jwt.validator.ts
 │   ├── decorators/
 │   │   └── skip-response-wrap.decorator.ts
 │   ├── filters/
@@ -146,7 +144,7 @@ pnpm test:e2e      # e2e (supertest)
 | `DB_NAME` | no | `auth_service` | PostgreSQL database name |
 | `DATABASE_URL` | yes | — | Full connection string (used by Prisma CLI) |
 | `INTERNAL_JWT_SECRET` | yes | — | Shared secret for signing/verifying internal JWTs |
-| `AUTH_SERVICE_URL` | yes | — | Auth service GraphQL endpoint |
+| `JWT_SECRET` | yes | — | Secret for signing/verifying user-facing auth JWTs |
 | `REDIS_HOST` | no | `localhost` | Redis host |
 | `REDIS_PORT` | no | `6379` | Redis port |
 | `REDIS_PASSWORD` | no | — | Redis password |
@@ -160,42 +158,12 @@ pnpm test:e2e      # e2e (supertest)
 
 ## Auth
 
-Two guards available per endpoint:
+One guard available per endpoint:
 
 | Guard | Validator | Use case |
 |---|---|---|
-| `ExternalAuthGuard` | `RemoteAuthValidator` — calls Auth Service via GraphQL mutation `validateToken` | Client-facing |
 | `InternalAuthGuard` | `InternalJwtValidator` — verifies short-lived JWT with shared secret | Service-to-service |
 Service A generates a fresh JWT (5 min expiry), Service B verifies it.
-
-**Service A — sending the request:**
-
-```ts
-import { InternalTokenService } from './common/auth/internal-token.service';
-
-@Injectable()
-export class NotificationClient {
-  constructor(private readonly tokenService: InternalTokenService) {}
-
-  async notify(userId: string) {
-    const token = this.tokenService.generate();
-    await fetch('http://notification-service/internal/send', {
-      headers: { Authorization: `Bearer ${token}` },
-    });
-  }
-}
-```
-
-**Service B — receiving the request:**
-
-```ts
-@UseGuards(InternalAuthGuard)
-@Post('internal/send')
-async send(@Body() body: SendDto, @CurrentUser() user: JwtPayload) {
-  console.log(user.sub); // 'schedule-service' — identifies the caller
-}
-```
-
 ## API
 
 ### REST

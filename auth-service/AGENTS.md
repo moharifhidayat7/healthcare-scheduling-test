@@ -13,8 +13,7 @@ HTTP (Express) ──► AppModule
                       │
                       ├─► AuthModule ──► Guards ──► TokenValidators
                       │                    │           ├─ InternalJwtValidator (JwtService.verify)
-                      │                    │           └─ RemoteAuthValidator (HTTP POST to Auth Service)
-                      │                    └─► InternalTokenService (generates outgoing JWTs)
+                      │                    │                                 │                    └─► InternalTokenService (generates outgoing JWTs)
                       │
                       ├─► HealthModule ──► GET /health (Prisma ping + Redis ping)
                       │
@@ -33,7 +32,7 @@ HTTP (Express) ──► AppModule
 
 **Config flow**: `src/config/*.config.ts` (Zod-validated `registerAs` factories) → `env.config.ts` barrel → `AppModule` load array → `ConfigService.get('namespace.key')` anywhere in DI.
 
-**Auth flow**: `@UseGuards(InternalAuthGuard|ExternalAuthGuard)` → `AuthGuard.canActivate` extracts Bearer token → `TokenValidator.validate(token)` → attaches `request.user: JwtPayload`.
+**Auth flow**: `@UseGuards(InternalAuthGuard)` → `AuthGuard.canActivate` extracts Bearer token → `TokenValidator.validate(token)` → attaches `request.user: JwtPayload`.
 
 ## Key Directories
 
@@ -117,7 +116,7 @@ Existing namespaces: `app`, `database`, `auth`, `redis`, `mail`.
 ### Auth Guards
 
 - `AuthGuard` (abstract, not `@Injectable()`) implements `CanActivate` — takes `TokenValidator` via constructor
-- `InternalAuthGuard` and `ExternalAuthGuard` are `@Injectable()` subclasses
+- `InternalAuthGuard` is an `@Injectable()` subclass
 - Both support REST and GraphQL contexts (checks `context.getType() === 'graphql'`)
 - `@CurrentUser()` decorator extracts `request.user`
 
