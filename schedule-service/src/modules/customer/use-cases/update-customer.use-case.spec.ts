@@ -3,6 +3,7 @@ import { NotFoundException } from '@nestjs/common';
 import { UpdateCustomerUseCase } from './update-customer.use-case';
 import { CustomerService } from '../customer.service';
 import { PrismaService } from '../../../integrations/prisma/prisma.service';
+import { CacheService } from '../../../common/cache/cache.service';
 
 type MockPrisma = {
   customer: { findUnique: jest.Mock; update: jest.Mock };
@@ -30,6 +31,15 @@ describe('UpdateCustomerUseCase', () => {
       providers: [
         UpdateCustomerUseCase,
         CustomerService,
+        {
+          provide: CacheService,
+          useValue: {
+            get: jest.fn().mockResolvedValue(null),
+            set: jest.fn(),
+            del: jest.fn(),
+            delByPattern: jest.fn(),
+          },
+        },
         { provide: PrismaService, useValue: mockPrisma },
       ],
     }).compile();

@@ -8,6 +8,7 @@ import { UpdateCustomerUseCase } from '../use-cases/update-customer.use-case';
 import { GetCustomerUseCase } from '../use-cases/get-customer.use-case';
 import { GetCustomersUseCase } from '../use-cases/get-customers.use-case';
 import { DeleteCustomerUseCase } from '../use-cases/delete-customer.use-case';
+import { CacheService } from '../../../common/cache/cache.service';
 
 type MockPrisma = {
   customer: {
@@ -54,6 +55,15 @@ describe('CustomerResolver', () => {
         GetCustomersUseCase,
         DeleteCustomerUseCase,
         CustomerService,
+        {
+          provide: CacheService,
+          useValue: {
+            get: jest.fn().mockResolvedValue(null),
+            set: jest.fn(),
+            del: jest.fn(),
+            delByPattern: jest.fn(),
+          },
+        },
         { provide: PrismaService, useValue: mockPrisma },
       ],
     })

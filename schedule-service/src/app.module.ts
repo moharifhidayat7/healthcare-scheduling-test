@@ -15,6 +15,7 @@ import { GlobalExceptionFilter } from './common/filters/global-exception.filter'
 import { envVarsSchema } from './config/env-vars.schema';
 import { RedisModule } from './integrations/redis/redis.module';
 import { BullMqModule } from './integrations/bullmq/bullmq.module';
+import { CacheModule } from './common/cache/cache.module';
 import { MailModule } from './common/mail/mail.module';
 
 @Module({
@@ -25,8 +26,7 @@ import { MailModule } from './common/mail/mail.module';
     }),
     RedisModule,
     BullMqModule,
-    PrismaModule,
-    GraphqlModule,
+    CacheModule,
     //    EmptyModule,
     CustomerModule,
     DoctorModule,

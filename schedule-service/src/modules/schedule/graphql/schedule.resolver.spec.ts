@@ -7,6 +7,7 @@ import { CreateScheduleUseCase } from '../use-cases/create-schedule.use-case';
 import { GetScheduleUseCase } from '../use-cases/get-schedule.use-case';
 import { GetSchedulesUseCase } from '../use-cases/get-schedules.use-case';
 import { DeleteScheduleUseCase } from '../use-cases/delete-schedule.use-case';
+import { CacheService } from '../../../common/cache/cache.service';
 
 type MockPrisma = {
   customer: { findUnique: jest.Mock };
@@ -58,6 +59,15 @@ describe('ScheduleResolver', () => {
         GetSchedulesUseCase,
         DeleteScheduleUseCase,
         ScheduleService,
+        {
+          provide: CacheService,
+          useValue: {
+            get: jest.fn().mockResolvedValue(null),
+            set: jest.fn(),
+            del: jest.fn(),
+            delByPattern: jest.fn(),
+          },
+        },
         { provide: PrismaService, useValue: mockPrisma },
       ],
     })

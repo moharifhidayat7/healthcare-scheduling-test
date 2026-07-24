@@ -25,6 +25,8 @@ export const envVarsSchema = Joi.object({
   REDIS_PASSWORD: Joi.string().allow('').optional(),
   REDIS_DB: Joi.number().integer().min(0).default(0),
 
+  // Cache
+  CACHE_TTL: Joi.number().integer().positive().default(300),
   // Mail
   MAIL_HOST: Joi.string().required(),
   MAIL_PORT: Joi.number().integer().positive().max(65535).default(587),

@@ -8,6 +8,7 @@ import { UpdateDoctorUseCase } from '../use-cases/update-doctor.use-case';
 import { GetDoctorUseCase } from '../use-cases/get-doctor.use-case';
 import { GetDoctorsUseCase } from '../use-cases/get-doctors.use-case';
 import { DeleteDoctorUseCase } from '../use-cases/delete-doctor.use-case';
+import { CacheService } from '../../../common/cache/cache.service';
 
 type MockPrisma = {
   doctor: {
@@ -53,6 +54,15 @@ describe('DoctorResolver', () => {
         GetDoctorsUseCase,
         DeleteDoctorUseCase,
         DoctorService,
+        {
+          provide: CacheService,
+          useValue: {
+            get: jest.fn().mockResolvedValue(null),
+            set: jest.fn(),
+            del: jest.fn(),
+            delByPattern: jest.fn(),
+          },
+        },
         { provide: PrismaService, useValue: mockPrisma },
       ],
     })

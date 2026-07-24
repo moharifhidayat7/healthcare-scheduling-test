@@ -3,6 +3,7 @@ import { NotFoundException } from '@nestjs/common';
 import { DeleteDoctorUseCase } from './delete-doctor.use-case';
 import { DoctorService } from '../doctor.service';
 import { PrismaService } from '../../../integrations/prisma/prisma.service';
+import { CacheService } from '../../../common/cache/cache.service';
 
 type MockPrisma = {
   doctor: { findUnique: jest.Mock; delete: jest.Mock };
@@ -29,6 +30,15 @@ describe('DeleteDoctorUseCase', () => {
       providers: [
         DeleteDoctorUseCase,
         DoctorService,
+        {
+          provide: CacheService,
+          useValue: {
+            get: jest.fn().mockResolvedValue(null),
+            set: jest.fn(),
+            del: jest.fn(),
+            delByPattern: jest.fn(),
+          },
+        },
         { provide: PrismaService, useValue: mockPrisma },
       ],
     }).compile();

@@ -2,6 +2,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { GetCustomersUseCase } from './get-customers.use-case';
 import { CustomerService } from '../customer.service';
 import { PrismaService } from '../../../integrations/prisma/prisma.service';
+import { CacheService } from '../../../common/cache/cache.service';
 
 type MockPrisma = {
   customer: { findMany: jest.Mock; count: jest.Mock };
@@ -29,6 +30,15 @@ describe('GetCustomersUseCase', () => {
       providers: [
         GetCustomersUseCase,
         CustomerService,
+        {
+          provide: CacheService,
+          useValue: {
+            get: jest.fn().mockResolvedValue(null),
+            set: jest.fn(),
+            del: jest.fn(),
+            delByPattern: jest.fn(),
+          },
+        },
         { provide: PrismaService, useValue: mockPrisma },
       ],
     }).compile();

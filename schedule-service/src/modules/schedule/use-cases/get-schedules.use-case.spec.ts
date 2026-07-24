@@ -2,6 +2,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { GetSchedulesUseCase } from './get-schedules.use-case';
 import { ScheduleService } from '../schedule.service';
 import { PrismaService } from '../../../integrations/prisma/prisma.service';
+import { CacheService } from '../../../common/cache/cache.service';
 
 type MockPrisma = {
   schedule: { findMany: jest.Mock; count: jest.Mock };
@@ -31,6 +32,15 @@ describe('GetSchedulesUseCase', () => {
       providers: [
         GetSchedulesUseCase,
         ScheduleService,
+        {
+          provide: CacheService,
+          useValue: {
+            get: jest.fn().mockResolvedValue(null),
+            set: jest.fn(),
+            del: jest.fn(),
+            delByPattern: jest.fn(),
+          },
+        },
         { provide: PrismaService, useValue: mockPrisma },
       ],
     }).compile();
