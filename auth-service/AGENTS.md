@@ -2,7 +2,7 @@
 
 ## Project Overview
 
-**Nest Microservice Boilerplate** — NestJS microservice boilerplate with GraphQL + REST, Prisma ORM, Redis cache/queues, and pluggable auth. A single-deployment NestJS v11 app that communicates with other services via HTTP + JWT (not a microservice mesh within this repo).
+**Auth Service** — NestJS v11 GraphQL + REST API with Prisma ORM (PostgreSQL), JWT auth, and bcrypt password hashing. A standalone auth service handling user registration, login, and token validation.
 
 ## Architecture & Data Flow
 
@@ -11,44 +11,53 @@ HTTP (Express) ──► AppModule
                       ├─► GlobalInterceptors (Logging, Response wrapper)
                       ├─► GlobalExceptionFilter
                       │
-                      ├─► AuthModule ──► Guards ──► TokenValidators
-                      │                    │           ├─ InternalJwtValidator (JwtService.verify)
-                      │                    │                                 │                    └─► InternalTokenService (generates outgoing JWTs)
+                      ├─► AuthModule ──► Guards
+                      │    │                └─ InternalAuthGuard ← InternalJwtValidator (JwtService.verify, INTERNAL_JWT_SECRET)
+                      │    │
+                      │    ├─► UserTokenService ──► JWT (JWT_SECRET) for user auth
+                      │    └─► UserJwtValidator ──► validates user tokens
                       │
-                      ├─► HealthModule ──► GET /health (Prisma ping + Redis ping)
+                      ├─► AuthModule (feature) ──► GraphQL resolver ──► use-cases
+                      │    ├─ RegisterUseCase       (bcrypt hash + Prisma create)
+                      │    ├─ LoginUseCase          (bcrypt compare + token)
+                      │    └─ ValidateTokenUseCase  (JWT verify → user info)
+                      │
+                      ├─► HealthModule ──► GET /health (Prisma ping)
                       │
                       ├─► GraphqlModule ──► Apollo Driver, autoSchemaFile
+                      │                      Default: POST /graphql
                       │
                       ├─► EmptyModule ──► Scaffold module (REST web/mobile + GraphQL)
-                      │
                       ├─► PrismaModule ──► PrismaClient (PostgreSQL via @prisma/adapter-pg)
-                      ├─► RedisModule ──► ioredis (lazy connect, lifecycle hooks)
-                      ├─► BullMqModule ──► Global BullMQ config (reuses redis.* config)
-                      │
-                      └─► MailModule ──► MailService ──► BullMQ 'mail' queue ──► MailProcessor
-                                                                                      ├─ Handlebars.render(template, context)
-                                                                                      └─ Nodemailer.sendMail(SMTP)
+                      ├─► RedisModule ──► ioredis (commented out — optional)
+                      ├─► BullMqModule ──► BullMQ (commented out — optional)
+                      └─► MailModule ──► MailService / MailProcessor (commented out — optional)
+                                           ├─ Handlebars.render(template, context)
+                                           └─ Nodemailer.sendMail(SMTP)
 ```
 
-**Config flow**: `src/config/*.config.ts` (Zod-validated `registerAs` factories) → `env.config.ts` barrel → `AppModule` load array → `ConfigService.get('namespace.key')` anywhere in DI.
+**Config flow**: `src/config/env-vars.schema.ts` (Joi-validated) → `ConfigModule.forRoot()` → `ConfigService.get('ENV_VAR_NAME')` anywhere in DI. No namespacing — values accessed directly by env var name.
 
-**Auth flow**: `@UseGuards(InternalAuthGuard)` → `AuthGuard.canActivate` extracts Bearer token → `TokenValidator.validate(token)` → attaches `request.user: JwtPayload`.
+**Auth flow** (user-facing): `register` mutation → `RegisterUseCase` → bcrypt hash → Prisma create → `UserTokenService.generate()` → JWT (signed with `JWT_SECRET`).
+
+**Auth flow** (service-to-service): `@UseGuards(InternalAuthGuard)` → `AuthGuard.canActivate` extracts Bearer token → `InternalJwtValidator.validate(token)` → attaches `request.user: JwtPayload`.
 
 ## Key Directories
 
 | Path | Purpose |
 |---|---|
-| `src/config/` | Zod-validated config factories (`registerAs`), barrel `env.config.ts` |
-| `src/integrations/` | Infrastructure modules: Prisma, Redis, BullMQ, GraphQL |
-| `src/common/auth/` | Auth guards, validators, token service, decorator |
+| `src/config/` | Joi env var schema (`env-vars.schema.ts`) |
+| `src/integrations/` | Infrastructure modules: Prisma, GraphQL, Redis (opt), BullMQ (opt) |
+| `src/common/auth/` | Auth guards, JWT validators (internal + user), token services, decorator |
+| `src/common/mail/` | Mail module (commented out — optional) |
 | `src/common/interceptors/` | Logging interceptor, response wrapper interceptor |
 | `src/common/filters/` | Global exception filter |
 | `src/common/pagination/` | Pagination DTO and interfaces |
 | `src/common/decorators/` | Custom decorators (`@SkipResponseWrap`) |
-| `src/modules/` | Feature modules: health, empty (scaffold), mail |
+| `src/modules/` | Feature modules: auth, health, empty (scaffold) |
 | `src/integrations/prisma/` | PrismaClient wrapper (v7, driver adapter pattern) |
 | `test/` | E2E tests, mocks, jest configs |
-| `prisma/` | Schema, migrations, seed |
+| `prisma/` | Schema, migrations, seed (bcrypt hashed password) |
 | `scripts/` | Dev utility scripts (e.g., `generate-token.ts`) |
 
 ## Development Commands
@@ -81,7 +90,7 @@ module/
 ├── use-cases/                   ← @Injectable() use-case classes
 ├── rest/{web,mobile}/           ← @Controller() with DTOs
 ├── graphql/                     ← @Resolver(), @ObjectType, @InputType
-└── spec.ts                     ← Tests (when present)
+└── *.spec.ts                    ← Tests alongside source
 ```
 
 ### Imports
@@ -89,23 +98,13 @@ module/
 - **No path aliases** — all imports are relative (`../../integrations/...`)
 - Organize: NestJS decorators first, then project modules, then 3rd-party
 
-### Config Factories
+### Config Validation
 
-Every config factory uses this exact pattern:
+All environment variables validated at startup via a single Joi schema in `src/config/env-vars.schema.ts`. Values accessed directly by env var name through `ConfigService`:
 
 ```ts
-import { registerAs } from '@nestjs/config';
-import { z } from 'zod';
-
-const schema = z.object({ ... });
-export default registerAs('namespace', () => schema.parse({
-  key: process.env.ENV_VAR,
-}));
+const host = config.get<string>('REDIS_HOST');
 ```
-
-Access via: `config.get<string>('namespace.key')` or `config.get<number>('namespace.key')`.
-
-Existing namespaces: `app`, `database`, `auth`, `redis`, `mail`.
 
 ### Service Lifecycle
 
@@ -116,9 +115,17 @@ Existing namespaces: `app`, `database`, `auth`, `redis`, `mail`.
 ### Auth Guards
 
 - `AuthGuard` (abstract, not `@Injectable()`) implements `CanActivate` — takes `TokenValidator` via constructor
-- `InternalAuthGuard` is an `@Injectable()` subclass
-- Both support REST and GraphQL contexts (checks `context.getType() === 'graphql'`)
+- `InternalAuthGuard` is the `@Injectable()` subclass for service-to-service JWT validation
+- Supports both REST and GraphQL contexts (checks `context.getType() === 'graphql'`)
 - `@CurrentUser()` decorator extracts `request.user`
+
+### User Auth (GraphQL)
+
+- `register(email, password)` → bcrypt hash → Prisma create → user JWT
+- `login(email, password)` → bcrypt compare → user JWT
+- `validateToken(token)` → verify user JWT → user info payload
+- User tokens signed with `JWT_SECRET` (24h expiry), service-to-service tokens use `INTERNAL_JWT_SECRET` (5m expiry)
+- Business logic in `use-cases/` classes, resolver delegates directly to them
 
 ### Exception Handling
 
@@ -134,7 +141,7 @@ Existing namespaces: `app`, `database`, `auth`, `redis`, `mail`.
 
 ### Validation
 
-- **Config**: Zod schemas in `src/config/` (validated at startup)
+- **Config**: Joi schema in `src/config/env-vars.schema.ts` (validated at startup)
 - **Runtime**: `class-validator` + `class-transformer` via NestJS `ValidationPipe` (global, `whitelist: true`, `forbidNonWhitelisted: true`, `transform: true`)
 
 ### BullMQ Queues
@@ -149,17 +156,21 @@ Existing namespaces: `app`, `database`, `auth`, `redis`, `mail`.
 |---|---|
 | `src/main.ts` | Bootstrap: `NestFactory.create`, CORS, ValidationPipe, shutdown hooks, listen on `PORT` |
 | `src/app.module.ts` | Root module — wires all integrations, modules, global interceptors/filters |
-| `src/config/env.config.ts` | Barrel — re-exports all 5 config factories |
-| `src/config/*.config.ts` | Config factories (app, database, auth, redis, mail) |
+| `src/config/env-vars.schema.ts` | Joi validation schema for all env vars |
 | `src/common/auth/auth.guard.ts` | Base auth guard — token extraction, delegation |
 | `src/common/auth/token-validator.ts` | Abstract validator + `JwtPayload` interface |
+| `src/common/auth/user-token.service.ts` | Generates user-facing JWTs (`JWT_SECRET`) |
+| `src/common/auth/strategies/user-jwt.validator.ts` | Validates user-facing JWTs |
+| `src/common/auth/strategies/internal-jwt.validator.ts` | Validates service-to-service JWTs |
+| `src/common/auth/internal-token.service.ts` | Generates outgoing service-to-service JWTs (`INTERNAL_JWT_SECRET`) |
 | `src/common/interceptors/response.interceptor.ts` | Response envelope wrapper |
 | `src/common/filters/global-exception.filter.ts` | Unified error response |
 | `src/integrations/prisma/prisma.service.ts` | PrismaClient wrapper (v7 driver adapter) |
-| `src/integrations/redis/redis.health.ts` | Health indicator for Redis |
+| `src/modules/auth/` | GraphQL auth module — resolver + use-cases |
 | `src/modules/health/health.controller.ts` | `GET /health` endpoint |
 | `src/modules/empty/` | Scaffold module (template for new features) |
-| `prisma/schema.prisma` | Single `User` model |
+| `prisma/schema.prisma` | `User` model with bcrypt-hashed password |
+| `prisma/seed/index.ts` | Seed script using bcrypt for password hash |
 | `prisma.config.ts` | Prisma v7 `defineConfig` |
 | `test/app.e2e-spec.ts` | E2E smoke tests |
 | `Dockerfile` | Multi-stage pnpm build |
@@ -201,7 +212,7 @@ pnpm test:watch    # Watch mode
 - **rootDir**: `src` — specs live alongside source
 - **testRegex**: `.*\.spec\.ts$` — any `*.spec.ts` under `src/`
 - **collectCoverageFrom**: `**/*.(t|j)s`
-- Place test files next to the code they test: `mail.service.ts` → `mail.service.spec.ts`
+- Place test files next to the code they test: `register.use-case.ts` → `register.use-case.spec.ts`
 
 ### E2E Tests
 
@@ -212,7 +223,8 @@ pnpm test:watch    # Watch mode
 
 ### Current Coverage
 
-2 E2E tests (health endpoint, GraphQL hello query). **Zero unit tests.** Coverage configuration exists but no meaningful coverage yet.
+2 E2E tests (health endpoint, GraphQL hello query).
+14 unit tests across 4 test suites (resolver + 3 use-cases).
 
 ### Mock Pattern (E2E)
 

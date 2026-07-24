@@ -18,9 +18,7 @@ export class GlobalExceptionFilter implements ExceptionFilter {
     const { httpAdapter } = this.httpAdapterHost;
 
     const isHttp = exception instanceof HttpException;
-    const status = isHttp
-      ? exception.getStatus()
-      : HttpStatus.INTERNAL_SERVER_ERROR;
+    const status = isHttp ? exception.getStatus() : HttpStatus.INTERNAL_SERVER_ERROR;
     const message = isHttp ? exception.getResponse() : 'Internal server error';
 
     if (!isHttp) {
@@ -32,10 +30,7 @@ export class GlobalExceptionFilter implements ExceptionFilter {
 
     const responseBody = {
       statusCode: status,
-      message:
-        typeof message === 'string'
-          ? message
-          : ((message as Record<string, unknown>).message ?? message),
+      message: typeof message === 'string' ? message : (message as Record<string, unknown>).message ?? message,
       data: null,
       meta: {
         timestamp: new Date().toISOString(),

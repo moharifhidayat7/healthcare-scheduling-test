@@ -1,12 +1,12 @@
-import { hashSync } from 'bcrypt';
-import { PrismaClient } from '../../generated/prisma/client';
+import bcrypt from 'bcrypt';
+import { PrismaClient } from '@app/prisma';
 import { PrismaPg } from '@prisma/adapter-pg';
 
 const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL });
 const prisma = new PrismaClient({ adapter });
 
 async function main() {
-  const password = hashSync('change-password', 10);
+  const password = await bcrypt.hash('password123', 10);
 
   const user = await prisma.user.upsert({
     where: { email: 'admin@test.com' },

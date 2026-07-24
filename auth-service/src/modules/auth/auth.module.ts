@@ -1,23 +1,13 @@
 import { Module } from '@nestjs/common';
-import { JwtModule } from '@nestjs/jwt';
-import { ConfigModule, ConfigService } from '@nestjs/config';
-import { PrismaModule } from '../../integrations/prisma/prisma.module';
-import { AuthService } from './auth.service';
 import { AuthResolver } from './graphql/auth.resolver';
+import { RegisterUseCase } from './use-cases/register.use-case';
+import { LoginUseCase } from './use-cases/login.use-case';
+import { ValidateTokenUseCase } from './use-cases/validate-token.use-case';
+import { PrismaModule } from '../../integrations/prisma/prisma.module';
+import { AuthModule as CommonAuthModule } from '../../common/auth/auth.module';
 
 @Module({
-  imports: [
-    PrismaModule,
-    JwtModule.registerAsync({
-      imports: [ConfigModule],
-      inject: [ConfigService],
-      useFactory: (config: ConfigService) => ({
-        secret: config.get<string>('JWT_SECRET'),
-        signOptions: { expiresIn: '7d' },
-      }),
-    }),
-  ],
-  providers: [AuthService, AuthResolver],
-  exports: [AuthService],
+  imports: [PrismaModule, CommonAuthModule],
+  providers: [AuthResolver, RegisterUseCase, LoginUseCase, ValidateTokenUseCase],
 })
 export class AuthModule {}

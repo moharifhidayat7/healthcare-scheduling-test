@@ -1,7 +1,7 @@
 {
-  "name": "nest-ms-boilerplate",
+  "name": "auth-service",
   "version": "0.0.1",
-  "description": "NestJS Microservice boilerplate",
+  "description": "Auth Service",
   "author": "",
   "private": true,
   "license": "UNLICENSED",
@@ -82,11 +82,11 @@
     ],
     "rootDir": "src",
     "testRegex": ".*\\.spec\\.ts$",
-    "moduleNameMapper": {
-      "^.+generated/prisma/client$": "<rootDir>/../test/__mocks__/prisma-client.ts"
-    },
     "transform": {
       "^.+\\.(t|j)s$": "ts-jest"
+    },
+    "moduleNameMapper": {
+      "@app/prisma": "<rootDir>/../generated/prisma/client"
     },
     "collectCoverageFrom": [
       "**/*.(t|j)s"

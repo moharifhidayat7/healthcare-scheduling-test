@@ -8,6 +8,7 @@
     "^.+\\.(t|j)s$": ["ts-jest", { "useESM": false, "tsconfig": "test/tsconfig.json" }]
   },
   "moduleNameMapper": {
+    "@app/prisma": "<rootDir>/test/__mocks__/prisma-client.ts",
     "^.+generated/prisma/client$": "<rootDir>/test/__mocks__/prisma-client.ts"
   }
 }

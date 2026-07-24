@@ -1,10 +1,10 @@
 import { InputType, Field } from '@nestjs/graphql';
 
-@InputType()
+@InputType({ description: 'Input for creating a new user account' })
 export class RegisterInput {
-  @Field()
+  @Field({ description: 'User email address (must be unique)' })
   email: string;
 
-  @Field()
+  @Field({ description: 'Plain-text password (will be hashed with bcrypt)' })
   password: string;
 }

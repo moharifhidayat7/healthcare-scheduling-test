@@ -1,6 +1,6 @@
-# Nest Microservice
+# Auth Service
 
-NestJS microservice boilerplate with GraphQL + REST, Prisma ORM, and pluggable auth.
+NestJS v11 GraphQL + REST API with Prisma ORM (PostgreSQL), JWT auth, and bcrypt password hashing.
 
 ## Structure
 
@@ -16,25 +16,28 @@ src/
 │   ├── prisma/
 │   │   ├── prisma.module.ts
 │   │   └── prisma.service.ts
-│   ├── redis/
-│   │   ├── redis.module.ts
-│   │   ├── redis.service.ts
-│   │   └── redis.health.ts
-│   ├── bullmq/
-│   │   └── bullmq.module.ts
+│   ├── redis/                  ← (commented out — optional)
+│   ├── bullmq/                 ← (commented out — optional)
 │   └── graphql/
-│       └── graphql.module.ts  ← Apollo driver config
+│       └── graphql.module.ts  ← Apollo driver config (POST /graphql)
 │
 ├── common/
 │   ├── auth/
 │   │   ├── auth.module.ts
-│   │   ├── auth.guard.ts          ← base guard
-│   │   ├── internal.guard.ts      ← validates internal JWT
+│   │   ├── auth.guard.ts              ← base guard
+│   │   ├── internal.guard.ts          ← validates internal JWT (INTERNAL_JWT_SECRET)
 │   │   ├── current-user.decorator.ts
-│   │   ├── internal-token.service.ts  ← generates outgoing JWTs
-│   │   ├── token-validator.ts     ← abstract class + JwtPayload type
+│   │   ├── token-validator.ts         ← abstract class + JwtPayload type
+│   │   ├── internal-token.service.ts  ← generates service-to-service JWTs
+│   │   ├── user-token.service.ts      ← generates user auth JWTs (JWT_SECRET)
 │   │   └── strategies/
-│   │       └── internal-jwt.validator.ts
+│   │       ├── internal-jwt.validator.ts
+│   │       └── user-jwt.validator.ts
+│   ├── mail/                  ← (commented out — optional)
+│   │   ├── mail.module.ts
+│   │   ├── mail.service.ts
+│   │   ├── mail.processor.ts
+│   │   └── interfaces/
 │   ├── decorators/
 │   │   └── skip-response-wrap.decorator.ts
 │   ├── filters/
@@ -47,41 +50,24 @@ src/
 │       └── pagination.interface.ts
 │
 ├── modules/
-│   ├── empty/
-│   │   ├── empty.module.ts
-│   │   ├── empty.service.ts
-│   │   ├── rest/web/
-│   │   │   ├── empty.controller.ts
-│   │   │   └── dto/
-│   │   │       └── create-empty.request.ts
-│   │   ├── rest/mobile/
-│   │   │   ├── empty.controller.ts
-│   │   │   └── dto/
-│   │   │       └── create-empty.request.ts
+│   ├── auth/
+│   │   ├── auth.module.ts
 │   │   ├── graphql/
-│   │   │   ├── empty.resolver.ts
+│   │   │   ├── auth.resolver.ts
 │   │   │   ├── types/
-│   │   │   │   └── empty.type.ts
+│   │   │   │   ├── auth-token.type.ts
+│   │   │   │   └── user-info.type.ts
 │   │   │   └── inputs/
-│   │   │       ├── create-empty.input.ts
-│   │   │       └── update-empty.input.ts
+│   │   │       ├── register.input.ts
+│   │   │       └── login.input.ts
 │   │   └── use-cases/
-│   │       ├── create-empty.use-case.ts
-│   │       ├── get-empty.use-case.ts
-│   │       ├── get-empties.use-case.ts
-│   │       ├── update-empty.use-case.ts
-│   │       └── delete-empty.use-case.ts
-│   ├── health/
-│   │   ├── health.controller.ts
-│   │   └── health.module.ts
-│   └── mail/
-│       ├── mail.module.ts
-│       ├── mail.service.ts
-│       ├── mail.processor.ts
-│       ├── mail.constants.ts
-│       ├── interfaces/
-│       │   └── mail.interface.ts
-│       └── templates/
+│   │       ├── register.use-case.ts
+│   │       ├── login.use-case.ts
+│   │       └── validate-token.use-case.ts
+│   ├── empty/                  ← scaffold module
+│   └── health/
+│       ├── health.controller.ts
+│       └── health.module.ts
 │
 └── prisma/
     ├── schema.prisma
@@ -92,8 +78,7 @@ src/
 ## Configuration
 
 All environment variables are validated at startup via a Joi schema in `src/config/env-vars.schema.ts`.
-No config factories, no `registerAs`, no namespacing — values are accessed directly by their env var name
-through NestJS `ConfigService`:
+Values are accessed directly by their env var name through NestJS `ConfigService`:
 
 ```ts
 constructor(private config: ConfigService) {
@@ -126,7 +111,7 @@ pnpm start:prod     # production
 ## Tests
 
 ```bash
-pnpm test          # unit (Jest)
+pnpm test          # unit (Jest) — 14 tests across 4 suites
 pnpm test:e2e      # e2e (supertest)
 ```
 
@@ -143,38 +128,193 @@ pnpm test:e2e      # e2e (supertest)
 | `DB_PASSWORD` | no | `postgres` | PostgreSQL password |
 | `DB_NAME` | no | `auth_service` | PostgreSQL database name |
 | `DATABASE_URL` | yes | — | Full connection string (used by Prisma CLI) |
-| `INTERNAL_JWT_SECRET` | yes | — | Shared secret for signing/verifying internal JWTs |
-| `JWT_SECRET` | yes | — | Secret for signing/verifying user-facing auth JWTs |
-| `REDIS_HOST` | no | `localhost` | Redis host |
-| `REDIS_PORT` | no | `6379` | Redis port |
+| `INTERNAL_JWT_SECRET` | yes | — | Shared secret for signing/verifying service-to-service JWTs |
+| `JWT_SECRET` | yes | — | Shared secret for signing/verifying user auth JWTs |
+| `REDIS_HOST` | no | `localhost` | Redis host (optional) |
+| `REDIS_PORT` | no | `6379` | Redis port (optional) |
 | `REDIS_PASSWORD` | no | — | Redis password |
 | `REDIS_DB` | no | `0` | Redis database index |
-| `MAIL_HOST` | yes | — | SMTP host |
-| `MAIL_PORT` | no | `587` | SMTP port |
+| `MAIL_HOST` | no | — | SMTP host (optional) |
+| `MAIL_PORT` | no | `587` | SMTP port (optional) |
 | `MAIL_USER` | no | — | SMTP user |
 | `MAIL_PASSWORD` | no | — | SMTP password |
 | `MAIL_FROM` | no | `noreply@example.com` | Default sender address |
-| `MAIL_TEMPLATE_DIR` | no | `./templates/mail` | Handlebars template directory |
 
 ## Auth
 
-One guard available per endpoint:
+### Service-to-Service
 
-| Guard | Validator | Use case |
-|---|---|---|
-| `InternalAuthGuard` | `InternalJwtValidator` — verifies short-lived JWT with shared secret | Service-to-service |
-Service A generates a fresh JWT (5 min expiry), Service B verifies it.
-## API
+`InternalAuthGuard` verifies short-lived JWTs (5 min, `INTERNAL_JWT_SECRET`) between services.
 
-### REST
+**Service A — sending:**
+
+```ts
+import { InternalTokenService } from './common/auth/internal-token.service';
+
+@Injectable()
+export class NotificationClient {
+  constructor(private readonly tokenService: InternalTokenService) {}
+
+  async notify(userId: string) {
+    const token = this.tokenService.generate();
+    await fetch('http://notification-service/internal/send', {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+  }
+}
+```
+
+**Service B — receiving:**
+
+```ts
+@UseGuards(InternalAuthGuard)
+@Post('internal/send')
+async send(@Body() body: SendDto, @CurrentUser() user: JwtPayload) {
+  console.log(user.sub); // 'schedule-service' — identifies the caller
+}
+```
+
+### User Auth (GraphQL)
+
+Available at `POST /graphql`. Open the Apollo Sandbox at `http://localhost:3000/graphql` in your browser.
+
+#### register
+
+Creates a new user account. Password hashed with bcrypt (10 rounds) before storage.
+
+```graphql
+mutation Register($input: RegisterInput!) {
+  register(input: $input) {
+    token
+  }
+}
+```
+
+**Variables:**
+```json
+{
+  "input": {
+    "email": "user@example.com",
+    "password": "securePassword123"
+  }
+}
+```
+
+**Response:**
+```json
+{
+  "data": {
+    "register": {
+      "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+    }
+  }
+}
+```
+
+**Errors:** `409 Conflict` — email already registered.
+
+---
+
+#### login
+
+Authenticates with email and password. Returns a JWT on success.
+
+```graphql
+mutation Login($input: LoginInput!) {
+  login(input: $input) {
+    token
+  }
+}
+```
+
+**Variables:**
+```json
+{
+  "input": {
+    "email": "user@example.com",
+    "password": "securePassword123"
+  }
+}
+```
+
+**Response:**
+```json
+{
+  "data": {
+    "login": {
+      "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+    }
+  }
+}
+```
+
+**Errors:** `401 Unauthorized` — invalid email or password.
+
+---
+
+#### validateToken
+
+Validates a user JWT and returns decoded user info.
+
+```graphql
+query ValidateToken($token: String!) {
+  validateToken(token: $token) {
+    id
+    email
+    roles
+  }
+}
+```
+
+**Variables:**
+```json
+{
+  "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+}
+```
+
+**Response:**
+```json
+{
+  "data": {
+    "validateToken": {
+      "id": "550e8400-e29b-41d4-a716-446655440000",
+      "email": "user@example.com",
+      "roles": ["user"]
+    }
+  }
+}
+```
+
+**Errors:** `401 Unauthorized` — invalid or expired token.
+
+---
+
+#### Using the token
+
+Include the JWT in the `Authorization` header for authenticated requests:
+
+```http
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+```
+
+## REST
+
+### Scaffold (empty module)
 
 ```
-GET    /health              ← health check (prisma ping)
-GET    /web/empty           ← template endpoints
+GET    /web/empty
 POST   /web/empty
 PATCH  /web/empty/:id
 DELETE /web/empty/:id
 ```
+
+### Health
+
+```
+GET /health
+```
+
 
 All responses wrapped in:
 ```json
@@ -186,20 +326,14 @@ All responses wrapped in:
 }
 ```
 
-### GraphQL
-
-```
-POST /graphql
-```
-
 ## Docker
 
 ### Build
 
 ```bash
-podman build -t nest-ms-boilerplate:latest .
+podman build -t auth-service:latest .
 # or
-docker build -t nest-ms-boilerplate:latest .
+docker build -t auth-service:latest .
 ```
 
 ### docker-compose
@@ -215,10 +349,6 @@ services:
     healthcheck:
       test: pg_isready -U postgres
 
-  redis:
-    image: redis:7-alpine
-    ports: [6379:6379]
-
   app:
     build: .
     env_file: .env
@@ -226,8 +356,6 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
-      redis:
-        condition: service_started
 ```
 
 ### Migrations

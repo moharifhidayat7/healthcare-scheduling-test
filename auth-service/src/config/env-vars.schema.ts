@@ -2,9 +2,7 @@ import * as Joi from 'joi';
 
 export const envVarsSchema = Joi.object({
   // App
-  NODE_ENV: Joi.string()
-    .valid('development', 'production', 'test')
-    .default('development'),
+  NODE_ENV: Joi.string().valid('development', 'production', 'test').default('development'),
   PORT: Joi.number().integer().positive().max(65535).default(3000),
   SERVICE_NAME: Joi.string().default('unknown'),
 
@@ -20,16 +18,15 @@ export const envVarsSchema = Joi.object({
   JWT_SECRET: Joi.string().min(8).required(),
 
   // Redis
-  REDIS_HOST: Joi.string().required(),
+  REDIS_HOST: Joi.string().optional(),
   REDIS_PORT: Joi.number().integer().positive().max(65535).default(6379),
   REDIS_PASSWORD: Joi.string().allow('').optional(),
   REDIS_DB: Joi.number().integer().min(0).default(0),
 
   // Mail
-  MAIL_HOST: Joi.string().required(),
+  MAIL_HOST: Joi.string().optional(),
   MAIL_PORT: Joi.number().integer().positive().max(65535).default(587),
   MAIL_USER: Joi.string().allow('').optional(),
   MAIL_PASSWORD: Joi.string().allow('').optional(),
   MAIL_FROM: Joi.string().default('noreply@example.com'),
-  MAIL_TEMPLATE_DIR: Joi.string().default('./templates/mail'),
 });
