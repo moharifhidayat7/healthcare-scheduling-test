@@ -24,6 +24,7 @@ export class ResponseInterceptor implements NestInterceptor {
       context.getClass(),
     ]);
     if (skip) return next.handle();
+
     const paginated = this.reflector.getAllAndOverride<boolean>(PAGINATED, [
       context.getHandler(),
       context.getClass(),
@@ -35,6 +36,7 @@ export class ResponseInterceptor implements NestInterceptor {
     return next.handle().pipe(
       map((result: unknown) => {
         const res = result as Record<string, unknown> | null;
+
         if (paginated) {
           return {
             statusCode,
@@ -42,7 +44,8 @@ export class ResponseInterceptor implements NestInterceptor {
             data: res?.data ?? result,
             meta: {
               timestamp: new Date().toISOString(),
-              pagination: (res?.meta as Record<string, unknown>)?.pagination ?? null,
+              pagination:
+                (res?.meta as Record<string, unknown>)?.pagination ?? null,
             },
           };
         }

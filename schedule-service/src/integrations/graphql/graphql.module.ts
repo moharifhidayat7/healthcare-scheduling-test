@@ -14,4 +14,4 @@ import { ApolloServerPluginLandingPageLocalDefault } from '@apollo/server/plugin
     }),
   ],
 })
-export class GraphqlModule { }
+export class GraphqlModule {}
