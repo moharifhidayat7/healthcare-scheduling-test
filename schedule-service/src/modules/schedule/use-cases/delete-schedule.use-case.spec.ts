@@ -2,17 +2,16 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { NotFoundException } from '@nestjs/common';
 import { DeleteScheduleUseCase } from './delete-schedule.use-case';
 import { ScheduleService } from '../schedule.service';
-import { PrismaService } from '../../../integrations/prisma/prisma.service';
+import { CustomerService } from '../../customer/customer.service';
+import { DoctorService } from '../../doctor/doctor.service';
 import { MailService } from '../../../common/mail/mail.service';
-import { CacheService } from '../../../common/cache/cache.service';
-
-type MockPrisma = {
-  schedule: { findUnique: jest.Mock; delete: jest.Mock };
-};
 
 describe('DeleteScheduleUseCase', () => {
   let useCase: DeleteScheduleUseCase;
-  let prisma: MockPrisma;
+  let scheduleService: jest.Mocked<ScheduleService>;
+  let customerService: jest.Mocked<CustomerService>;
+  let doctorService: jest.Mocked<DoctorService>;
+  let mailService: jest.Mocked<MailService>;
 
   const mockSchedule = {
     id: '1',
@@ -22,61 +21,84 @@ describe('DeleteScheduleUseCase', () => {
     scheduledAt: new Date('2026-08-01T10:00:00Z'),
     createdAt: new Date(),
     updatedAt: new Date(),
-    customer: { name: 'Test', email: 'test@example.com' },
-    doctor: { name: 'Dr. Smith' },
   };
 
-  const mockPrisma: MockPrisma = {
-    schedule: { findUnique: jest.fn(), delete: jest.fn() },
+  const mockCustomer = {
+    id: 'cust-1',
+    name: 'Test',
+    email: 'test@example.com',
+    createdAt: new Date(),
+    updatedAt: new Date(),
+  };
+
+  const mockDoctor = {
+    id: 'doc-1',
+    name: 'Dr. Smith',
+    createdAt: new Date(),
+    updatedAt: new Date(),
   };
 
   beforeEach(async () => {
     jest.clearAllMocks();
+
+    scheduleService = {
+      findById: jest.fn().mockResolvedValue(mockSchedule),
+      delete: jest.fn().mockResolvedValue(mockSchedule),
+    } as unknown as jest.Mocked<ScheduleService>;
+
+    customerService = {
+      findById: jest.fn().mockResolvedValue(mockCustomer),
+    } as unknown as jest.Mocked<CustomerService>;
+
+    doctorService = {
+      findById: jest.fn().mockResolvedValue(mockDoctor),
+    } as unknown as jest.Mocked<DoctorService>;
+
+    mailService = {
+      send: jest.fn().mockResolvedValue(undefined),
+    } as unknown as jest.Mocked<MailService>;
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         DeleteScheduleUseCase,
-        ScheduleService,
-        {
-          provide: MailService,
-          useValue: { send: jest.fn().mockResolvedValue(undefined) },
-        },
-        {
-          provide: CacheService,
-          useValue: {
-            get: jest.fn().mockResolvedValue(null),
-            set: jest.fn(),
-            del: jest.fn(),
-            delByPattern: jest.fn(),
-          },
-        },
-        { provide: PrismaService, useValue: mockPrisma },
+        { provide: ScheduleService, useValue: scheduleService },
+        { provide: CustomerService, useValue: customerService },
+        { provide: DoctorService, useValue: doctorService },
+        { provide: MailService, useValue: mailService },
       ],
     }).compile();
 
     useCase = module.get(DeleteScheduleUseCase);
-    prisma = module.get(PrismaService) as unknown as MockPrisma;
   });
 
   it('should delete and return the schedule when found', async () => {
-    prisma.schedule.findUnique.mockResolvedValue(mockSchedule);
-    prisma.schedule.delete.mockResolvedValue(mockSchedule);
-
     const result = await useCase.execute('1');
 
-    expect(prisma.schedule.findUnique).toHaveBeenCalledWith({
-      where: { id: '1' },
-      include: { customer: true, doctor: true },
+    expect(scheduleService.findById).toHaveBeenCalledWith('1');
+    expect(customerService.findById).toHaveBeenCalledWith('cust-1');
+    expect(doctorService.findById).toHaveBeenCalledWith('doc-1');
+    expect(scheduleService.delete).toHaveBeenCalledWith('1');
+    expect(mailService.send).toHaveBeenCalledWith({
+      to: mockCustomer.email,
+      subject: 'Schedule Cancelled',
+      template: 'schedule-deleted',
+      context: {
+        customerName: mockCustomer.name,
+        doctorName: mockDoctor.name,
+        scheduledAt: mockSchedule.scheduledAt.toISOString(),
+        objective: mockSchedule.objective,
+      },
     });
-    expect(prisma.schedule.delete).toHaveBeenCalledWith({ where: { id: '1' } });
     expect(result).toEqual(mockSchedule);
   });
 
   it('should throw NotFoundException when not found', async () => {
-    prisma.schedule.findUnique.mockResolvedValue(null);
-
-    await expect(useCase.execute('1')).rejects.toThrow(
+    scheduleService.findById.mockRejectedValue(
       new NotFoundException('Schedule with id 1 not found'),
     );
-    expect(prisma.schedule.delete).not.toHaveBeenCalled();
+
+    await expect(useCase.execute('1')).rejects.toThrow(NotFoundException);
+    expect(scheduleService.delete).not.toHaveBeenCalled();
+    expect(mailService.send).not.toHaveBeenCalled();
   });
 });

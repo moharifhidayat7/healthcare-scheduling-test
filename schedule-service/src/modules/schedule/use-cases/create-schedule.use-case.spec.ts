@@ -1,23 +1,17 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { NotFoundException, ConflictException } from '@nestjs/common';
 import { CreateScheduleUseCase } from './create-schedule.use-case';
+import { CustomerService } from '../../customer/customer.service';
+import { DoctorService } from '../../doctor/doctor.service';
 import { ScheduleService } from '../schedule.service';
-import { PrismaService } from '../../../integrations/prisma/prisma.service';
 import { MailService } from '../../../common/mail/mail.service';
-import { CacheService } from '../../../common/cache/cache.service';
-
-type MockPrisma = {
-  customer: { findUnique: jest.Mock };
-  doctor: { findUnique: jest.Mock };
-  schedule: {
-    findFirst: jest.Mock;
-    create: jest.Mock;
-  };
-};
 
 describe('CreateScheduleUseCase', () => {
   let useCase: CreateScheduleUseCase;
-  let prisma: MockPrisma;
+  let customerService: jest.Mocked<CustomerService>;
+  let doctorService: jest.Mocked<DoctorService>;
+  let scheduleService: jest.Mocked<ScheduleService>;
+  let mailService: jest.Mocked<MailService>;
 
   const mockCustomer = {
     id: 'cust-1',
@@ -39,101 +33,102 @@ describe('CreateScheduleUseCase', () => {
     scheduledAt: '2026-08-01T10:00:00.000Z',
   };
 
-  const mockPrisma: MockPrisma = {
-    customer: { findUnique: jest.fn() },
-    doctor: { findUnique: jest.fn() },
-    schedule: {
-      findFirst: jest.fn(),
-      create: jest.fn(),
-    },
+  const mockSchedule = {
+    id: '1',
+    ...baseInput,
+    scheduledAt: new Date(baseInput.scheduledAt),
+    createdAt: new Date(),
+    updatedAt: new Date(),
   };
 
   beforeEach(async () => {
     jest.clearAllMocks();
+
+    customerService = {
+      findById: jest.fn().mockResolvedValue(mockCustomer),
+    } as unknown as jest.Mocked<CustomerService>;
+
+    doctorService = {
+      findById: jest.fn().mockResolvedValue(mockDoctor),
+    } as unknown as jest.Mocked<DoctorService>;
+
+    scheduleService = {
+      validateSchedule: jest.fn().mockResolvedValue(undefined),
+      create: jest.fn().mockResolvedValue(mockSchedule),
+    } as unknown as jest.Mocked<ScheduleService>;
+
+    mailService = {
+      send: jest.fn().mockResolvedValue(undefined),
+    } as unknown as jest.Mocked<MailService>;
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         CreateScheduleUseCase,
-        ScheduleService,
-        {
-          provide: MailService,
-          useValue: { send: jest.fn().mockResolvedValue(undefined) },
-        },
-        {
-          provide: CacheService,
-          useValue: {
-            get: jest.fn().mockResolvedValue(null),
-            set: jest.fn(),
-            del: jest.fn(),
-            delByPattern: jest.fn(),
-          },
-        },
-        { provide: PrismaService, useValue: mockPrisma },
+        { provide: CustomerService, useValue: customerService },
+        { provide: DoctorService, useValue: doctorService },
+        { provide: ScheduleService, useValue: scheduleService },
+        { provide: MailService, useValue: mailService },
       ],
     }).compile();
 
     useCase = module.get(CreateScheduleUseCase);
-    prisma = module.get(PrismaService) as unknown as MockPrisma;
   });
 
   it('should create a schedule when valid', async () => {
-    const expected = {
-      id: '1',
-      ...baseInput,
-      scheduledAt: new Date(baseInput.scheduledAt),
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    };
-    prisma.customer.findUnique.mockResolvedValue(mockCustomer);
-    prisma.doctor.findUnique.mockResolvedValue(mockDoctor);
-    prisma.schedule.findFirst.mockResolvedValue(null);
-    prisma.schedule.create.mockResolvedValue(expected);
-
     const result = await useCase.execute(baseInput);
 
-    expect(prisma.customer.findUnique).toHaveBeenCalledWith({
-      where: { id: 'cust-1' },
+    expect(customerService.findById).toHaveBeenCalledWith('cust-1');
+    expect(doctorService.findById).toHaveBeenCalledWith('doc-1');
+    expect(scheduleService.validateSchedule).toHaveBeenCalledWith(
+      'doc-1',
+      baseInput.scheduledAt,
+    );
+    expect(scheduleService.create).toHaveBeenCalledWith(baseInput);
+    expect(mailService.send).toHaveBeenCalledWith({
+      to: mockCustomer.email,
+      subject: 'Schedule Confirmed',
+      template: 'schedule-created',
+      context: {
+        customerName: mockCustomer.name,
+        doctorName: mockDoctor.name,
+        scheduledAt: mockSchedule.scheduledAt.toISOString(),
+        objective: mockSchedule.objective,
+      },
     });
-    expect(prisma.doctor.findUnique).toHaveBeenCalledWith({
-      where: { id: 'doc-1' },
-    });
-    expect(prisma.schedule.findFirst).toHaveBeenCalled();
-    expect(prisma.schedule.create).toHaveBeenCalledWith({ data: baseInput });
-    expect(result).toEqual(expected);
+    expect(result).toEqual(mockSchedule);
   });
 
   it('should throw NotFoundException when customer does not exist', async () => {
-    prisma.customer.findUnique.mockResolvedValue(null);
-    prisma.doctor.findUnique.mockResolvedValue(mockDoctor);
-
-    await expect(useCase.execute(baseInput)).rejects.toThrow(
-      new NotFoundException('Customer with id cust-1 not found'),
+    customerService.findById.mockRejectedValue(
+      new NotFoundException(
+        `Customer with id ${baseInput.customerId} not found`,
+      ),
     );
-    expect(prisma.schedule.create).not.toHaveBeenCalled();
+
+    await expect(useCase.execute(baseInput)).rejects.toThrow(NotFoundException);
+    expect(scheduleService.create).not.toHaveBeenCalled();
+    expect(mailService.send).not.toHaveBeenCalled();
   });
 
   it('should throw NotFoundException when doctor does not exist', async () => {
-    prisma.customer.findUnique.mockResolvedValue(mockCustomer);
-    prisma.doctor.findUnique.mockResolvedValue(null);
-
-    await expect(useCase.execute(baseInput)).rejects.toThrow(
-      new NotFoundException('Doctor with id doc-1 not found'),
+    doctorService.findById.mockRejectedValue(
+      new NotFoundException(`Doctor with id ${baseInput.doctorId} not found`),
     );
-    expect(prisma.schedule.create).not.toHaveBeenCalled();
+
+    await expect(useCase.execute(baseInput)).rejects.toThrow(NotFoundException);
+    expect(scheduleService.create).not.toHaveBeenCalled();
+    expect(mailService.send).not.toHaveBeenCalled();
   });
 
   it('should throw ConflictException when schedule overlaps within 15-minute window', async () => {
-    prisma.customer.findUnique.mockResolvedValue(mockCustomer);
-    prisma.doctor.findUnique.mockResolvedValue(mockDoctor);
-    prisma.schedule.findFirst.mockResolvedValue({
-      id: 'existing',
-      ...baseInput,
-      scheduledAt: new Date(baseInput.scheduledAt),
-      createdAt: new Date(),
-      updatedAt: new Date(),
-      doctor: { name: mockDoctor.name },
-    });
+    scheduleService.validateSchedule.mockRejectedValue(
+      new ConflictException(
+        `Doctor ${baseInput.doctorId} already has a schedule at ${baseInput.scheduledAt}`,
+      ),
+    );
 
     await expect(useCase.execute(baseInput)).rejects.toThrow(ConflictException);
-    expect(prisma.schedule.create).not.toHaveBeenCalled();
+    expect(scheduleService.create).not.toHaveBeenCalled();
+    expect(mailService.send).not.toHaveBeenCalled();
   });
 });

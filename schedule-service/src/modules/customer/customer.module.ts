@@ -20,6 +20,6 @@ import { DeleteCustomerUseCase } from './use-cases/delete-customer.use-case';
     GetCustomersUseCase,
     DeleteCustomerUseCase,
   ],
-  controllers: [],
+  exports: [CustomerService],
 })
 export class CustomerModule {}

@@ -9,6 +9,8 @@ import { GetSchedulesUseCase } from '../use-cases/get-schedules.use-case';
 import { DeleteScheduleUseCase } from '../use-cases/delete-schedule.use-case';
 import { CacheService } from '../../../common/cache/cache.service';
 import { MailService } from '../../../common/mail/mail.service';
+import { CustomerService } from '../../customer/customer.service';
+import { DoctorService } from '../../doctor/doctor.service';
 
 type MockPrisma = {
   customer: { findUnique: jest.Mock };
@@ -26,6 +28,8 @@ type MockPrisma = {
 describe('ScheduleResolver', () => {
   let resolver: ScheduleResolver;
   let prisma: MockPrisma;
+  let customerService: CustomerService;
+  let doctorService: DoctorService;
 
   const mockSchedule = {
     id: '1',
@@ -63,6 +67,14 @@ describe('ScheduleResolver', () => {
         DeleteScheduleUseCase,
         ScheduleService,
         {
+          provide: CustomerService,
+          useValue: { findById: jest.fn() },
+        },
+        {
+          provide: DoctorService,
+          useValue: { findById: jest.fn() },
+        },
+        {
           provide: CacheService,
           useValue: {
             get: jest.fn().mockResolvedValue(null),
@@ -84,6 +96,8 @@ describe('ScheduleResolver', () => {
 
     resolver = module.get(ScheduleResolver);
     prisma = module.get(PrismaService) as unknown as MockPrisma;
+    customerService = module.get(CustomerService);
+    doctorService = module.get(DoctorService);
   });
 
   describe('schedules', () => {
@@ -104,11 +118,11 @@ describe('ScheduleResolver', () => {
       });
     });
 
-    it('should pass undefined page/limit when omitted', async () => {
+    it('should use default page=1 and limit=20 when not provided', async () => {
       prisma.schedule.findMany.mockResolvedValue([]);
       prisma.schedule.count.mockResolvedValue(0);
 
-      await resolver.schedules(undefined, undefined);
+      await resolver.schedules();
 
       expect(prisma.schedule.findMany).toHaveBeenCalledWith({
         skip: 0,
@@ -153,19 +167,15 @@ describe('ScheduleResolver', () => {
         updatedAt: new Date(),
       };
 
-      prisma.customer.findUnique.mockResolvedValue(mockCustomer);
-      prisma.doctor.findUnique.mockResolvedValue(mockDoctor);
+      (customerService.findById as jest.Mock).mockResolvedValue(mockCustomer);
+      (doctorService.findById as jest.Mock).mockResolvedValue(mockDoctor);
       prisma.schedule.findFirst.mockResolvedValue(null);
       prisma.schedule.create.mockResolvedValue(mockSchedule);
 
       const result = await resolver.createSchedule(input);
 
-      expect(prisma.customer.findUnique).toHaveBeenCalledWith({
-        where: { id: 'cust-1' },
-      });
-      expect(prisma.doctor.findUnique).toHaveBeenCalledWith({
-        where: { id: 'doc-1' },
-      });
+      expect(customerService.findById).toHaveBeenCalledWith('cust-1');
+      expect(doctorService.findById).toHaveBeenCalledWith('doc-1');
       expect(prisma.schedule.findFirst).toHaveBeenCalled();
       expect(prisma.schedule.create).toHaveBeenCalledWith({ data: input });
       expect(result).toEqual(mockSchedule);
@@ -175,14 +185,20 @@ describe('ScheduleResolver', () => {
   describe('deleteSchedule', () => {
     it('should delete and return the schedule when found', async () => {
       prisma.schedule.findUnique.mockResolvedValue(mockSchedule);
+
+      (customerService.findById as jest.Mock).mockResolvedValue({
+        id: 'cust-1',
+        name: 'Test',
+        email: 'test@example.com',
+      });
+      (doctorService.findById as jest.Mock).mockResolvedValue({
+        id: 'doc-1',
+        name: 'Dr. Smith',
+      });
       prisma.schedule.delete.mockResolvedValue(mockSchedule);
 
       const result = await resolver.deleteSchedule('1');
 
-      expect(prisma.schedule.findUnique).toHaveBeenCalledWith({
-        where: { id: '1' },
-        include: { customer: true, doctor: true },
-      });
       expect(prisma.schedule.delete).toHaveBeenCalledWith({
         where: { id: '1' },
       });

@@ -20,6 +20,6 @@ import { DeleteDoctorUseCase } from './use-cases/delete-doctor.use-case';
     GetDoctorsUseCase,
     DeleteDoctorUseCase,
   ],
-  controllers: [],
+  exports: [DoctorService],
 })
 export class DoctorModule {}
