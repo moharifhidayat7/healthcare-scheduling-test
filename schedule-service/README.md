@@ -133,3 +133,22 @@ Endpoints are protected by `ExternalAuthGuard`. Include a JWT from the Auth Serv
 ```http
 Authorization: Bearer <token>
 ```
+
+### Service-to-Service
+
+`InternalAuthGuard` verifies short-lived JWTs (5 min, `INTERNAL_JWT_SECRET`) between services.
+
+```ts
+// Caller service — generate a token
+const token = this.internalTokenService.generate();
+await fetch('http://schedule-service:3002/graphql', {
+  method: 'POST',
+  headers: {
+    Authorization: `Bearer ${token}`,
+    'Content-Type': 'application/json',
+  },
+  body: JSON.stringify({ query: '...', variables: { ... } }),
+});
+```
+
+The `sub` field in the JWT identifies the calling service (e.g. `"notification-service"`).

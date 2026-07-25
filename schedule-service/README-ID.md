@@ -133,3 +133,22 @@ Endpoint dilindungi oleh `ExternalAuthGuard`. Sertakan JWT dari Auth Service:
 ```http
 Authorization: Bearer <token>
 ```
+
+### Layanan-ke-Layanan
+
+`InternalAuthGuard` memverifikasi JWT berumur pendek (5 menit, `INTERNAL_JWT_SECRET`) antar layanan.
+
+```ts
+// Layanan pemanggil — buat token
+const token = this.internalTokenService.generate();
+await fetch('http://schedule-service:3002/graphql', {
+  method: 'POST',
+  headers: {
+    Authorization: `Bearer ${token}`,
+    'Content-Type': 'application/json',
+  },
+  body: JSON.stringify({ query: '...', variables: { ... } }),
+});
+```
+
+Nilai `sub` dalam JWT mengidentifikasi layanan pemanggil (misalnya `"notification-service"`).
