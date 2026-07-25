@@ -72,14 +72,25 @@ graph LR
 
 See `.env.example` at the project root. Each service also has its own `.env` file with service-specific overrides.
 
-Key shared variables:
+| Variable | Required | Default | Description |
+|---|---|---|---|
+| `COMPOSE_PROJECT_NAME` | no | `hss` | Docker Compose project prefix |
+| `POSTGRES_PORT` | no | `5432` | PostgreSQL port (compose) |
+| `POSTGRES_USER` | no | `postgres` | PostgreSQL user (compose) |
+| `POSTGRES_PASSWORD` | no | `postgres` | PostgreSQL password (compose) |
+| `REDIS_PORT` | no | `6379` | Redis port (compose) |
+| `REDIS_PASSWORD` | no | — | Redis password |
+| `REDIS_DB` | no | `0` | Redis database index |
+| `REDIS_URL` | no | `redis://localhost:6379/0` | Redis connection string (derived from above) |
+| `JWT_SECRET` | yes | — | Secret for user-facing JWTs (Auth Service) |
+| `INTERNAL_JWT_SECRET` | yes | — | Shared secret for service-to-service JWTs |
+| `MAIL_HOST` | no | `smtp4dev` | SMTP server |
+| `MAIL_PORT` | no | `25` | SMTP port (compose) |
+| `MAIL_USER` | no | — | SMTP user (optional) |
+| `MAIL_PASSWORD` | no | — | SMTP password (optional) |
+| `MAIL_FROM` | no | `noreply@example.com` | Default sender address |
 
-| Variable | Default | Description |
-|---|---|---|
-| `JWT_SECRET` | `change-this-...` | Secret for user-facing JWT |
-| `INTERNAL_JWT_SECRET` | `change-this-...` | Secret for service-to-service JWT |
-| `MAIL_HOST` | `smtp4dev` | SMTP server (smtp4dev container) |
-
+`REDIS_URL` is a convenience variable constructed from `REDIS_HOST`, `REDIS_PORT`, and `REDIS_DB`. The services read individual fields (`REDIS_HOST`, `REDIS_PORT`, etc.) directly, not `REDIS_URL`.
 ## Development
 
 ```bash

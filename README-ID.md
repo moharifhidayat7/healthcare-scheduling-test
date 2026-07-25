@@ -72,14 +72,25 @@ graph LR
 
 Lihat `.env.example` di root proyek. Setiap layanan juga memiliki file `.env` sendiri dengan pengaturan spesifik layanan.
 
-Variabel bersama utama:
+| Variabel | Wajib | Default | Deskripsi |
+|---|---|---|---|
+| `COMPOSE_PROJECT_NAME` | tidak | `hss` | Prefix proyek Docker Compose |
+| `POSTGRES_PORT` | tidak | `5432` | Port PostgreSQL (compose) |
+| `POSTGRES_USER` | tidak | `postgres` | User PostgreSQL (compose) |
+| `POSTGRES_PASSWORD` | tidak | `postgres` | Password PostgreSQL (compose) |
+| `REDIS_PORT` | tidak | `6379` | Port Redis (compose) |
+| `REDIS_PASSWORD` | tidak | — | Password Redis |
+| `REDIS_DB` | tidak | `0` | Indeks database Redis |
+| `REDIS_URL` | tidak | `redis://localhost:6379/0` | String koneksi Redis (diturunkan dari atas) |
+| `JWT_SECRET` | ya | — | Rahasia untuk JWT pengguna (Auth Service) |
+| `INTERNAL_JWT_SECRET` | ya | — | Rahasia bersama untuk JWT layanan-ke-layanan |
+| `MAIL_HOST` | tidak | `smtp4dev` | Server SMTP |
+| `MAIL_PORT` | tidak | `25` | Port SMTP (compose) |
+| `MAIL_USER` | tidak | — | User SMTP (opsional) |
+| `MAIL_PASSWORD` | tidak | — | Password SMTP (opsional) |
+| `MAIL_FROM` | tidak | `noreply@example.com` | Alamat pengirim default |
 
-| Variabel | Default | Deskripsi |
-|---|---|---|
-| `JWT_SECRET` | `change-this-...` | Rahasia untuk JWT pengguna |
-| `INTERNAL_JWT_SECRET` | `change-this-...` | Rahasia untuk JWT layanan-ke-layanan |
-| `MAIL_HOST` | `smtp4dev` | Server SMTP (kontainer smtp4dev) |
-
+`REDIS_URL` adalah variabel kemudahan yang dibangun dari `REDIS_HOST`, `REDIS_PORT`, dan `REDIS_DB`. Layanan membaca field individual (`REDIS_HOST`, `REDIS_PORT`, dll.) secara langsung, bukan `REDIS_URL`.
 ## Pengembangan
 
 ```bash
