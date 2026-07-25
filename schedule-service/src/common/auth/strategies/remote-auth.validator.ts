@@ -1,7 +1,8 @@
 import { Injectable } from '@nestjs/common';
+import { HttpService } from '@nestjs/axios';
 import { ConfigService } from '@nestjs/config';
 import { Env } from '../../../config/env-vars.schema';
-import axios from 'axios';
+import { firstValueFrom } from 'rxjs';
 import { TokenValidator, JwtPayload } from '../token-validator';
 
 @Injectable()
@@ -9,7 +10,10 @@ export class RemoteAuthValidator extends TokenValidator {
   private readonly url: string;
   private readonly timeoutMs: number;
 
-  constructor(config: ConfigService<Env, true>) {
+  constructor(
+    private readonly http: HttpService,
+    config: ConfigService<Env, true>,
+  ) {
     super();
     this.url = config.getOrThrow('AUTH_SERVICE_URL', { infer: true });
     this.timeoutMs = 2000;
@@ -26,13 +30,15 @@ export class RemoteAuthValidator extends TokenValidator {
       }
     `;
 
-    const { data } = await axios.post<{
-      data?: { validateToken: JwtPayload };
-      errors?: Array<{ message: string }>;
-    }>(
-      `${this.url}/graphql`,
-      { query, variables: { token } },
-      { timeout: this.timeoutMs },
+    const { data } = await firstValueFrom(
+      this.http.post<{
+        data?: { validateToken: JwtPayload };
+        errors?: Array<{ message: string }>;
+      }>(
+        `${this.url}/graphql`,
+        { query, variables: { token } },
+        { timeout: this.timeoutMs },
+      ),
     );
 
     if (data.errors?.length) {

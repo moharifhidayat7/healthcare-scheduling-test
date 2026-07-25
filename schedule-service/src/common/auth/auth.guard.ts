@@ -1,6 +1,7 @@
 import {
   CanActivate,
   ExecutionContext,
+  ServiceUnavailableException,
   UnauthorizedException,
 } from '@nestjs/common';
 import { GqlExecutionContext } from '@nestjs/graphql';
@@ -14,14 +15,18 @@ export class AuthGuard implements CanActivate {
     const token = this.extractToken(request);
 
     if (!token) {
-      throw new UnauthorizedException('Missing Bearer token');
+      throw new UnauthorizedException();
     }
 
     try {
       request.user = await this.validator.validate(token);
       return true;
-    } catch {
-      throw new UnauthorizedException('Invalid token');
+    } catch (err: unknown) {
+      const axiosErr = err as Record<string, unknown> | undefined;
+      if (axiosErr?.isAxiosError && !axiosErr.response) {
+        throw new ServiceUnavailableException('Auth service unreachable');
+      }
+      throw new UnauthorizedException();
     }
   }
 

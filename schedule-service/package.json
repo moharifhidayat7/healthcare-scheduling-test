@@ -23,6 +23,7 @@
     "@apollo/server": "^5.5.1",
     "@as-integrations/express5": "^1.1.2",
     "@nestjs/apollo": "^13.4.2",
+    "@nestjs/axios": "^4.0.1",
     "@nestjs/bullmq": "^11.0.4",
     "@nestjs/common": "^11.0.1",
     "@nestjs/config": "^4.0.4",
@@ -93,7 +94,9 @@
     "collectCoverageFrom": [
       "**/*.(t|j)s"
     ],
-    "coveragePathIgnorePatterns": ["/modules/empty/"],
+    "coveragePathIgnorePatterns": [
+      "/modules/empty/"
+    ],
     "coverageDirectory": "../coverage",
     "testEnvironment": "node"
   }

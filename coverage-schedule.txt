@@ -1,21 +1,21 @@
 -------------------------------------|---------|----------|---------|---------|----------------------------
 File                                 | % Stmts | % Branch | % Funcs | % Lines | Uncovered Line #s          
 -------------------------------------|---------|----------|---------|---------|----------------------------
-All files                            |   53.18 |    52.12 |   42.94 |   51.67 |                            
+All files                            |   52.94 |    51.82 |   42.94 |   51.39 |                            
  src                                 |       0 |        0 |       0 |       0 |                            
   app.module.ts                      |       0 |      100 |       0 |       0 | 1-53                       
   main.ts                            |       0 |        0 |       0 |       0 | 1-26                       
- src/common/auth                     |   16.12 |    11.53 |       0 |   15.09 |                            
-  auth.guard.ts                      |      15 |        0 |       0 |   15.78 | 10-41                      
-  auth.module.ts                     |       0 |      100 |       0 |       0 | 1-36                       
+ src/common/auth                     |   15.15 |       10 |       0 |   14.03 |                            
+  auth.guard.ts                      |   13.04 |        0 |       0 |   13.63 | 11-46                      
+  auth.module.ts                     |       0 |      100 |       0 |       0 | 1-38                       
   current-user.decorator.ts          |       0 |        0 |       0 |       0 | 1-10                       
   external.guard.ts                  |   85.71 |       75 |       0 |      80 | 8                          
   internal-token.service.ts          |       0 |        0 |       0 |       0 | 1-14                       
   internal.guard.ts                  |       0 |        0 |       0 |       0 | 1-8                        
   token-validator.ts                 |     100 |      100 |     100 |     100 |                            
- src/common/auth/strategies          |      35 |       50 |       0 |   27.77 |                            
+ src/common/auth/strategies          |   36.36 |       60 |       0 |      30 |                            
   internal-jwt.validator.ts          |       0 |      100 |       0 |       0 | 2-10                       
-  remote-auth.validator.ts           |   46.66 |       50 |       0 |   38.46 | 13-42                      
+  remote-auth.validator.ts           |   47.05 |       60 |       0 |      40 | 14-48                      
  src/common/cache                    |   20.58 |    26.66 |   14.28 |      20 |                            
   cache.module.ts                    |       0 |      100 |     100 |       0 | 1-11                       
   cache.service.ts                   |      25 |    26.66 |   14.28 |   23.07 | 10-61                      
