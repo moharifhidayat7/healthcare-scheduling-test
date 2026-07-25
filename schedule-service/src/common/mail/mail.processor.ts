@@ -56,7 +56,7 @@ export class MailProcessor extends WorkerHost {
       return cached(context);
     }
     const source = await readFile(
-      join('./templates/mail', `${name}.hbs`),
+      join(__dirname, 'templates', `${name}.hbs`),
       'utf-8',
     );
     const template = handlebars.compile(source);
