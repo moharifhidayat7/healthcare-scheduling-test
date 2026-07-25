@@ -30,6 +30,9 @@ src/
 │       │   ├── <nama-modul>.resolver.ts
 │       │   ├── inputs/              ← Kelas @InputType
 │       │   └── types/               ← Kelas @ObjectType
+│       ├── rest/
+│       │   ├── <nama-modul>.controller.ts
+│       │   └── dto/                 ← DTO request/response
 │       └── use-cases/               ← Logika orkestrasi
 └── prisma/
     └── schema.prisma              ← Model User

@@ -32,6 +32,9 @@ src/
 │       │   ├── <module-name>.resolver.ts
 │       │   ├── inputs/              ← @InputType classes
 │       │   └── types/               ← @ObjectType classes
+│       ├── rest/
+│       │   ├── <module-name>.controller.ts
+│       │   └── dto/                 ← Request/response DTOs
 │       └── use-cases/               ← Orchestration logic
 └── prisma/
     └── schema.prisma              ← Customer, Doctor, Schedule models
