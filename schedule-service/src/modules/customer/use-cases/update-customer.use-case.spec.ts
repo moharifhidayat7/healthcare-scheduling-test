@@ -34,7 +34,7 @@ describe('UpdateCustomerUseCase', () => {
         {
           provide: CacheService,
           useValue: {
-            get: jest.fn().mockResolvedValue(null),
+            get: jest.fn(),
             set: jest.fn(),
             del: jest.fn(),
             delByPattern: jest.fn(),

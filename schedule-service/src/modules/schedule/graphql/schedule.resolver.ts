@@ -1,23 +1,12 @@
-import {
-  Resolver,
-  Query,
-  Mutation,
-  Args,
-  Int,
-  ObjectType,
-} from '@nestjs/graphql';
+import { Resolver, Query, Mutation, Args, Int, ID } from '@nestjs/graphql';
 import { UseGuards } from '@nestjs/common';
 import { ExternalAuthGuard } from '../../../common/auth/external.guard';
-import { PaginatedType } from '../../../common/pagination/pagination.type';
-import { ScheduleType } from './types/schedule.type';
-import { CreateScheduleInput } from './inputs/create-schedule.input';
+import { ScheduleType, PaginatedScheduleType } from './types/schedule.type';
 import { CreateScheduleUseCase } from '../use-cases/create-schedule.use-case';
 import { GetScheduleUseCase } from '../use-cases/get-schedule.use-case';
 import { GetSchedulesUseCase } from '../use-cases/get-schedules.use-case';
 import { DeleteScheduleUseCase } from '../use-cases/delete-schedule.use-case';
-
-@ObjectType()
-class PaginatedScheduleType extends PaginatedType(ScheduleType) {}
+import { CreateScheduleInput } from './inputs/create-schedule.input';
 
 @UseGuards(ExternalAuthGuard)
 @Resolver(() => ScheduleType)
@@ -54,7 +43,10 @@ export class ScheduleResolver {
     description: 'Retrieve a single schedule by its unique identifier',
   })
   async schedule(
-    @Args('id', { description: 'The unique identifier of the schedule' })
+    @Args('id', {
+      type: () => ID,
+      description: 'The unique identifier of the schedule',
+    })
     id: string,
   ) {
     return this.getScheduleUseCase.execute(id);
@@ -76,6 +68,7 @@ export class ScheduleResolver {
   })
   async deleteSchedule(
     @Args('id', {
+      type: () => ID,
       description: 'The unique identifier of the schedule to delete',
     })
     id: string,

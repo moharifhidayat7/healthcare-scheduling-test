@@ -23,11 +23,6 @@ export class CacheService {
     }
   }
 
-  /**
-   * @param key Cache key
-   * @param value Value to cache (JSON-serialized)
-   * @param ttl TTL in seconds (default 300 = 5 min)
-   */
   async set(key: string, value: unknown, ttl = 300): Promise<void> {
     await this.redis.setex(key, ttl, JSON.stringify(value));
   }
@@ -36,7 +31,6 @@ export class CacheService {
     await this.redis.del(key);
   }
 
-  /** Delete all keys matching a glob pattern. Uses SCAN + DEL on the underlying Redis. */
   async delByPattern(pattern: string): Promise<void> {
     let cursor = '0';
     do {

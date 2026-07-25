@@ -1,4 +1,5 @@
 import { ObjectType, Field, ID } from '@nestjs/graphql';
+import { PaginatedType } from '../../../../common/pagination/pagination.type';
 
 @ObjectType()
 export class CustomerType {
@@ -17,3 +18,6 @@ export class CustomerType {
   @Field({ description: 'Timestamp when the customer was last updated' })
   updatedAt: Date;
 }
+
+@ObjectType()
+export class PaginatedCustomerType extends PaginatedType(CustomerType) {}

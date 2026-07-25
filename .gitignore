@@ -1,2 +1,5 @@
 nest-ms-boilerplate/
 .env
+node_modules/
+dist/
+generated/

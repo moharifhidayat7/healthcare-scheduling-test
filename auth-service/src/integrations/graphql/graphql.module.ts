@@ -11,12 +11,17 @@ import { ApolloServerPluginLandingPageLocalDefault } from '@apollo/server/plugin
       playground: false,
       introspection: true,
       plugins: [ApolloServerPluginLandingPageLocalDefault()],
-      formatError: (formattedError) => ({
-        message: formattedError.message,
-        statusCode:
-          (formattedError.extensions?.originalError as Record<string, unknown>)
-            ?.statusCode ?? 500,
-      }),
+      formatError: (formattedError) => {
+        const originalError = formattedError.extensions
+          ?.originalError as Record<string, unknown> | null;
+        const messages = originalError?.message;
+        return {
+          message: Array.isArray(messages)
+            ? messages.join('; ')
+            : formattedError.message,
+          statusCode: (originalError?.statusCode as number) ?? 500,
+        };
+      },
     }),
   ],
 })

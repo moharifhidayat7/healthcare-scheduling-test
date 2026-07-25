@@ -36,7 +36,7 @@ describe('CreateScheduleUseCase', () => {
     objective: 'Checkup',
     customerId: 'cust-1',
     doctorId: 'doc-1',
-    scheduledAt: new Date('2026-07-24T10:00:00Z'),
+    scheduledAt: '2026-08-01T10:00:00.000Z',
   };
 
   const mockPrisma: MockPrisma = {
@@ -79,6 +79,7 @@ describe('CreateScheduleUseCase', () => {
     const expected = {
       id: '1',
       ...baseInput,
+      scheduledAt: new Date(baseInput.scheduledAt),
       createdAt: new Date(),
       updatedAt: new Date(),
     };
@@ -120,14 +121,16 @@ describe('CreateScheduleUseCase', () => {
     expect(prisma.schedule.create).not.toHaveBeenCalled();
   });
 
-  it('should throw ConflictException when schedule overlaps within 1-hour window', async () => {
+  it('should throw ConflictException when schedule overlaps within 15-minute window', async () => {
     prisma.customer.findUnique.mockResolvedValue(mockCustomer);
     prisma.doctor.findUnique.mockResolvedValue(mockDoctor);
     prisma.schedule.findFirst.mockResolvedValue({
       id: 'existing',
       ...baseInput,
+      scheduledAt: new Date(baseInput.scheduledAt),
       createdAt: new Date(),
       updatedAt: new Date(),
+      doctor: { name: mockDoctor.name },
     });
 
     await expect(useCase.execute(baseInput)).rejects.toThrow(ConflictException);

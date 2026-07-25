@@ -19,7 +19,7 @@ describe('GetScheduleUseCase', () => {
     objective: 'Checkup',
     customerId: 'cust-1',
     doctorId: 'doc-1',
-    scheduledAt: new Date('2026-07-24T10:00:00Z'),
+    scheduledAt: new Date('2026-08-01T10:00:00Z'),
     createdAt: new Date(),
     updatedAt: new Date(),
   };

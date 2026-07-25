@@ -17,25 +17,29 @@ export class LoggingInterceptor implements NestInterceptor {
 
     let handlerName = '';
     let requestInfo = '';
+    let variables: Record<string, unknown> | undefined;
 
     if (context.getType() === 'http') {
-      // REST API
       const request = context.switchToHttp().getRequest();
-
       handlerName = `${request.method} ${request.url}`;
       requestInfo = `${request.ip}`;
     } else if (context.getType<'graphql'>() === 'graphql') {
-      // GraphQL API
       const gqlContext = GqlExecutionContext.create(context);
       const info = gqlContext.getInfo();
-
+      const args = gqlContext.getArgs();
       handlerName = `${info.parentType.name}.${info.fieldName}`;
-
+      variables = args && Object.keys(args).length > 0 ? args : undefined;
       const request = gqlContext.getContext().req;
       requestInfo = `${request.ip}`;
     }
 
-    this.logger.log(`Started ${handlerName} ${requestInfo}`);
+    if (variables) {
+      this.logger.log(
+        `Started ${handlerName} input=${JSON.stringify(variables)} ${requestInfo}`,
+      );
+    } else {
+      this.logger.log(`Started ${handlerName} ${requestInfo}`);
+    }
 
     return next.handle().pipe(
       tap({
@@ -43,7 +47,10 @@ export class LoggingInterceptor implements NestInterceptor {
           this.logger.log(`Completed ${handlerName} ${Date.now() - start}ms`);
         },
         error: (error) => {
-          this.logger.error(`Failed ${handlerName}: ${error.message}`);
+          this.logger.error(
+            `Failed ${handlerName} ${Date.now() - start}ms: ${error.message}`,
+            error.stack,
+          );
         },
       }),
     );

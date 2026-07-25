@@ -1,15 +1,7 @@
-import {
-  Resolver,
-  Query,
-  Mutation,
-  Args,
-  Int,
-  ObjectType,
-} from '@nestjs/graphql';
+import { Resolver, Query, Mutation, Args, Int, ID } from '@nestjs/graphql';
 import { UseGuards } from '@nestjs/common';
 import { ExternalAuthGuard } from '../../../common/auth/external.guard';
-import { PaginatedType } from '../../../common/pagination/pagination.type';
-import { DoctorType } from './types/doctor.type';
+import { DoctorType, PaginatedDoctorType } from './types/doctor.type';
 import { CreateDoctorInput } from './inputs/create-doctor.input';
 import { UpdateDoctorInput } from './inputs/update-doctor.input';
 import { CreateDoctorUseCase } from '../use-cases/create-doctor.use-case';
@@ -17,9 +9,6 @@ import { UpdateDoctorUseCase } from '../use-cases/update-doctor.use-case';
 import { GetDoctorUseCase } from '../use-cases/get-doctor.use-case';
 import { GetDoctorsUseCase } from '../use-cases/get-doctors.use-case';
 import { DeleteDoctorUseCase } from '../use-cases/delete-doctor.use-case';
-
-@ObjectType()
-class PaginatedDoctorType extends PaginatedType(DoctorType) {}
 
 @UseGuards(ExternalAuthGuard)
 @Resolver(() => DoctorType)
@@ -57,7 +46,10 @@ export class DoctorResolver {
     description: 'Retrieve a single doctor by its unique identifier',
   })
   async doctor(
-    @Args('id', { description: 'The unique identifier of the doctor' })
+    @Args('id', {
+      type: () => ID,
+      description: 'The unique identifier of the doctor',
+    })
     id: string,
   ) {
     return this.getDoctorUseCase.execute(id);
@@ -89,6 +81,7 @@ export class DoctorResolver {
   })
   async deleteDoctor(
     @Args('id', {
+      type: () => ID,
       description: 'The unique identifier of the doctor to delete',
     })
     id: string,

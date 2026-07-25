@@ -1,4 +1,5 @@
 import { ObjectType, Field, ID } from '@nestjs/graphql';
+import { PaginatedType } from '../../../../common/pagination/pagination.type';
 
 @ObjectType()
 export class ScheduleType {
@@ -23,3 +24,6 @@ export class ScheduleType {
   @Field({ description: 'Timestamp when the schedule was last updated' })
   updatedAt: Date;
 }
+
+@ObjectType()
+export class PaginatedScheduleType extends PaginatedType(ScheduleType) {}

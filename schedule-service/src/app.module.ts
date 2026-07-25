@@ -1,6 +1,6 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
-import { APP_INTERCEPTOR } from '@nestjs/core';
+import { APP_INTERCEPTOR, APP_FILTER } from '@nestjs/core';
 import { PrismaModule } from './integrations/prisma/prisma.module';
 import { GraphqlModule } from './integrations/graphql/graphql.module';
 import { CustomerModule } from './modules/customer/customer.module';
@@ -15,6 +15,7 @@ import { RedisModule } from './integrations/redis/redis.module';
 import { BullMqModule } from './integrations/bullmq/bullmq.module';
 import { CacheModule } from './common/cache/cache.module';
 import { MailModule } from './common/mail/mail.module';
+import { PrismaClientExceptionFilter } from './common/filters/prisma-client-exception.filter';
 
 @Module({
   imports: [
@@ -42,6 +43,10 @@ import { MailModule } from './common/mail/mail.module';
     {
       provide: APP_INTERCEPTOR,
       useClass: ResponseInterceptor,
+    },
+    {
+      provide: APP_FILTER,
+      useClass: PrismaClientExceptionFilter,
     },
   ],
 })

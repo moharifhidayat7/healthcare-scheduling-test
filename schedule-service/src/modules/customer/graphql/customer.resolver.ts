@@ -1,15 +1,7 @@
-import {
-  Resolver,
-  Query,
-  Mutation,
-  Args,
-  Int,
-  ObjectType,
-} from '@nestjs/graphql';
+import { Resolver, Query, Mutation, Args, Int, ID } from '@nestjs/graphql';
 import { UseGuards } from '@nestjs/common';
 import { ExternalAuthGuard } from '../../../common/auth/external.guard';
-import { PaginatedType } from '../../../common/pagination/pagination.type';
-import { CustomerType } from './types/customer.type';
+import { CustomerType, PaginatedCustomerType } from './types/customer.type';
 import { CreateCustomerInput } from './inputs/create-customer.input';
 import { UpdateCustomerInput } from './inputs/update-customer.input';
 import { CreateCustomerUseCase } from '../use-cases/create-customer.use-case';
@@ -17,9 +9,6 @@ import { UpdateCustomerUseCase } from '../use-cases/update-customer.use-case';
 import { GetCustomerUseCase } from '../use-cases/get-customer.use-case';
 import { GetCustomersUseCase } from '../use-cases/get-customers.use-case';
 import { DeleteCustomerUseCase } from '../use-cases/delete-customer.use-case';
-
-@ObjectType()
-class PaginatedCustomerType extends PaginatedType(CustomerType) {}
 
 @UseGuards(ExternalAuthGuard)
 @Resolver(() => CustomerType)
@@ -57,7 +46,10 @@ export class CustomerResolver {
     description: 'Retrieve a single customer by its unique identifier',
   })
   async customer(
-    @Args('id', { description: 'The unique identifier of the customer' })
+    @Args('id', {
+      type: () => ID,
+      description: 'The unique identifier of the customer',
+    })
     id: string,
   ) {
     return this.getCustomerUseCase.execute(id);
@@ -89,6 +81,7 @@ export class CustomerResolver {
   })
   async deleteCustomer(
     @Args('id', {
+      type: () => ID,
       description: 'The unique identifier of the customer to delete',
     })
     id: string,

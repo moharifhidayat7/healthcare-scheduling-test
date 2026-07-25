@@ -32,7 +32,7 @@ describe('ScheduleResolver', () => {
     objective: 'Checkup',
     customerId: 'cust-1',
     doctorId: 'doc-1',
-    scheduledAt: new Date('2026-07-24T10:00:00Z'),
+    scheduledAt: new Date('2026-08-01T10:00:00Z'),
     createdAt: new Date('2026-01-01'),
     updatedAt: new Date('2026-01-01'),
     customer: { name: 'Test', email: 'test@example.com' },
@@ -137,7 +137,7 @@ describe('ScheduleResolver', () => {
         objective: 'Checkup',
         customerId: 'cust-1',
         doctorId: 'doc-1',
-        scheduledAt: new Date('2026-07-24T10:00:00Z'),
+        scheduledAt: new Date('2026-08-01T10:00:00Z'),
       };
       const mockCustomer = {
         id: 'cust-1',

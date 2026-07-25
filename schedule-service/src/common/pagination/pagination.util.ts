@@ -5,6 +5,20 @@ export interface PaginationParams {
   limit: number;
 }
 
+const DEFAULT_PAGE = 1;
+const DEFAULT_LIMIT = 20;
+const MAX_LIMIT = 100;
+
+export function normalizePagination(
+  page?: number | null,
+  limit?: number | null,
+): PaginationParams {
+  return {
+    page: Math.max(DEFAULT_PAGE, page ?? DEFAULT_PAGE),
+    limit: Math.min(MAX_LIMIT, Math.max(1, limit ?? DEFAULT_LIMIT)),
+  };
+}
+
 export function buildPaginatedResult<T>(
   data: T[],
   total: number,
@@ -22,3 +36,5 @@ export function buildPaginatedResult<T>(
     },
   };
 }
+
+export { DEFAULT_PAGE, DEFAULT_LIMIT, MAX_LIMIT };
