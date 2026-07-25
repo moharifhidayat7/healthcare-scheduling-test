@@ -1,4 +1,4 @@
-# HealthCase Scheduling
+# Healthcare Scheduling
 
 Microservices monorepo for managing healthcare appointments. Built with NestJS v11, GraphQL, Prisma ORM, Redis, and PostgreSQL.
 

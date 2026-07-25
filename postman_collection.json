@@ -1,7 +1,7 @@
 {
   "info": {
-    "name": "HealthCase Scheduling",
-    "description": "E2E tests for HealthCase Scheduling microservices.\n\n## Setup\n1. Import this collection into Postman\n2. Set `baseUrl` (auth:3001) and `scheduleBaseUrl` (schedule:3002)\n3. Run \"Register — success\" first to populate `authToken`\n4. Then run Customers → Doctors → Schedules in order to chain IDs",
+    "name": "Healthcare Scheduling",
+    "description": "E2E tests for Healthcare Scheduling microservices.\n\n## Setup\n1. Import this collection into Postman\n2. Set `baseUrl` (auth:3001) and `scheduleBaseUrl` (schedule:3002)\n3. Run \"Register — success\" first to populate `authToken`\n4. Then run Customers → Doctors → Schedules in order to chain IDs",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "variable": [
