@@ -30,22 +30,33 @@ podman compose up -d auth-service schedule-service
 
 ## Architecture
 
-```
-┌──────────────┐     ┌──────────────────┐
-│  Auth Service │────▶│  Schedule Service │
-│  (port 3001)  │     │  (port 3002)     │
-│               │     │                  │
-│  JWT tokens   │     │  Customers       │
-│  bcrypt auth  │     │  Doctors         │
-│  User CRUD    │     │  Schedules       │
-└──────┬───────┘     │  Email queue     │
-       │             └────────┬─────────┘
-       │                      │
-       ▼                      ▼
-┌──────────────────────────────────────────┐
-│           Infrastructure                 │
-│  PostgreSQL · Redis · SMTP4Dev          │
-└──────────────────────────────────────────┘
+```mermaid
+graph LR
+    subgraph "Auth Service (:3001)"
+        A[register / login] --> B[JWT]
+    end
+    subgraph "Schedule Service (:3002)"
+        C[customers] --> D[CustomerService]
+        E[doctors] --> F[DoctorService]
+        G[schedules] --> H[ScheduleService]
+        H --> I[(BullMQ mail queue)]
+        I --> J[nodemailer]
+    end
+    subgraph "Infrastructure"
+        K[(PostgreSQL)]
+        L[(Redis)]
+        M[SMTP4Dev]
+    end
+    A -.-> K
+    B -.->|JWT auth| G
+    B -.->|JWT auth| C
+    B -.->|JWT auth| E
+    C -.-> K
+    E -.-> K
+    G -.-> K
+    H -.-> L
+    I -.-> L
+    J -.-> M
 ```
 
 - **Auth Service**: User registration/login, JWT generation and validation
