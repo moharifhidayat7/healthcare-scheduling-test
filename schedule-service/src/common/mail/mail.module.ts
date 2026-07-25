@@ -6,7 +6,16 @@ import { MailProcessor } from './mail.processor';
 import { MAIL_QUEUE } from './mail.constants';
 
 @Module({
-  imports: [ConfigModule, BullModule.registerQueue({ name: MAIL_QUEUE })],
+  imports: [
+    ConfigModule,
+    BullModule.registerQueue({
+      name: MAIL_QUEUE,
+      defaultJobOptions: {
+        attempts: 3,
+        backoff: { type: 'exponential', delay: 2000 },
+      },
+    }),
+  ],
   providers: [MailService, MailProcessor],
   exports: [MailService],
 })
