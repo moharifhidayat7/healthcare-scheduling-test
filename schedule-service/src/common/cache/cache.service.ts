@@ -3,8 +3,16 @@ import { RedisService } from '../../integrations/redis/redis.service';
 
 @Injectable()
 export class CacheService {
-  constructor(private readonly redis: RedisService) {}
+  private static _instance: CacheService | null = null;
+  static getInstance(): CacheService {
+    if (!CacheService._instance)
+      throw new Error('CacheService not initialized');
+    return CacheService._instance;
+  }
 
+  constructor(private readonly redis: RedisService) {
+    CacheService._instance = this;
+  }
   async get<T>(key: string): Promise<T | null> {
     const raw = await this.redis.get(key);
     if (raw === null) return null;
