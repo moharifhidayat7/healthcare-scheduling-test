@@ -32,31 +32,29 @@ podman compose up -d auth-service schedule-service
 
 ```mermaid
 graph LR
-    subgraph "Auth Service (:3001)"
-        A[register / login] --> B[JWT]
+    subgraph Client
+        CL[Browser / Postman]
     end
-    subgraph "Schedule Service (:3002)"
-        C[customers] --> D[CustomerService]
-        E[doctors] --> F[DoctorService]
-        G[schedules] --> H[ScheduleService]
-        H --> I[(BullMQ mail queue)]
-        I --> J[nodemailer]
+
+    subgraph "Services"
+        AUTH["Auth Service<br/>(port 3001)<br/>register · login · validateToken"]
+        SCHED["Schedule Service<br/>(port 3002)<br/>customers · doctors · schedules"]
     end
+
     subgraph "Infrastructure"
-        K[(PostgreSQL)]
-        L[(Redis)]
-        M[SMTP4Dev]
+        PG[(PostgreSQL)]
+        RD[(Redis)]
+        SMTP[SMTP4Dev]
     end
-    A -.-> K
-    B -.->|JWT auth| G
-    B -.->|JWT auth| C
-    B -.->|JWT auth| E
-    C -.-> K
-    E -.-> K
-    G -.-> K
-    H -.-> L
-    I -.-> L
-    J -.-> M
+
+    CL -- register / login --> AUTH
+    AUTH -- JWT --> CL
+    CL -- "Authorization: Bearer" --> SCHED
+    SCHED -. validate JWT .-> AUTH
+    AUTH --- PG
+    SCHED --- PG
+    SCHED --- RD
+    SCHED -. send email .-> SMTP
 ```
 
 - **Auth Service**: User registration/login, JWT generation and validation
