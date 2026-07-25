@@ -81,43 +81,18 @@ pnpm test:cov      # with coverage
 
 ### GraphQL
 
-All mutations/queries at `POST /graphql`.
-
-#### register
-
 ```graphql
-mutation Register($input: RegisterInput!) {
-  register(input: $input) { token }
-}
+# Register
+mutation Register($input: RegisterInput!) { register(input: $input) { token } }
+
+# Login
+mutation Login($input: LoginInput!) { login(input: $input) { token } }
+
+# Validate token
+query ValidateToken($token: String!) { validateToken(token: $token) { sub email roles } }
 ```
 
-**Errors:** `409 Conflict` — email already registered.
-
-#### login
-
-```graphql
-mutation Login($input: LoginInput!) {
-  login(input: $input) { token }
-}
-```
-
-**Errors:** `401 Unauthorized` — invalid email or password.
-
-#### validateToken
-
-```graphql
-query ValidateToken($token: String!) {
-  validateToken(token: $token) { sub email roles }
-}
-```
-
-**Errors:** `401 Unauthorized` — invalid or expired token.
-
-### Using the token
-
-```http
-Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
-```
+**Errors:** `409 Conflict` (register — email exists), `401 Unauthorized` (login — wrong credentials, validateToken — invalid/expired token)
 
 ### REST
 
@@ -125,14 +100,31 @@ Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
 GET /health    ← server reachability
 ```
 
-## Service-to-Service Auth
+## Auth
 
-Other services authenticate to this service using `InternalAuthGuard` with short-lived JWTs (5 min).
+### External (user JWT)
+
+Include the JWT returned from `register` or `login` in the `Authorization` header for authenticated requests:
+
+```http
+Authorization: Bearer <token>
+```
+
+### Internal (service-to-service)
+
+`InternalAuthGuard` verifies short-lived JWTs (5 min, `INTERNAL_JWT_SECRET`) between services.
 
 ```ts
-// Generating a token
+// Caller service — generate a token
 const token = this.internalTokenService.generate();
 await fetch('http://auth-service:3001/graphql', {
-  headers: { Authorization: `Bearer ${token}` },
+  method: 'POST',
+  headers: {
+    Authorization: `Bearer ${token}`,
+    'Content-Type': 'application/json',
+  },
+  body: JSON.stringify({ query: '...', variables: { ... } }),
 });
 ```
+
+The `sub` field in the JWT identifies the calling service (e.g. `"schedule-service"`).

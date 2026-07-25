@@ -128,13 +128,15 @@ GET /health    ← keterjangkauan server
 
 ## Autentikasi
 
-Endpoint dilindungi oleh `ExternalAuthGuard`. Sertakan JWT dari Auth Service:
+### Eksternal (JWT pengguna)
+
+Sertakan JWT dari `register` atau `login` di header `Authorization` untuk permintaan terautentikasi:
 
 ```http
 Authorization: Bearer <token>
 ```
 
-### Layanan-ke-Layanan
+### Internal (layanan-ke-layanan)
 
 `InternalAuthGuard` memverifikasi JWT berumur pendek (5 menit, `INTERNAL_JWT_SECRET`) antar layanan.
 

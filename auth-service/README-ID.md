@@ -81,43 +81,18 @@ pnpm test:cov      # dengan coverage
 
 ### GraphQL
 
-Semua mutasi/query di `POST /graphql`.
-
-#### register
-
 ```graphql
-mutation Register($input: RegisterInput!) {
-  register(input: $input) { token }
-}
+# Register
+mutation Register($input: RegisterInput!) { register(input: $input) { token } }
+
+# Login
+mutation Login($input: LoginInput!) { login(input: $input) { token } }
+
+# Validasi token
+query ValidateToken($token: String!) { validateToken(token: $token) { sub email roles } }
 ```
 
-**Error:** `409 Conflict` — email sudah terdaftar.
-
-#### login
-
-```graphql
-mutation Login($input: LoginInput!) {
-  login(input: $input) { token }
-}
-```
-
-**Error:** `401 Unauthorized` — email atau password salah.
-
-#### validateToken
-
-```graphql
-query ValidateToken($token: String!) {
-  validateToken(token: $token) { sub email roles }
-}
-```
-
-**Error:** `401 Unauthorized` — token tidak valid atau kedaluwarsa.
-
-### Menggunakan token
-
-```http
-Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
-```
+**Error:** `409 Conflict` (register — email sudah terdaftar), `401 Unauthorized` (login — kredensial salah, validateToken — token tidak valid/kedaluwarsa)
 
 ### REST
 
@@ -125,14 +100,31 @@ Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
 GET /health    ← keterjangkauan server
 ```
 
-## Autentikasi Layanan-ke-Layanan
+## Autentikasi
 
-Layanan lain mengautentikasi ke layanan ini menggunakan `InternalAuthGuard` dengan JWT berumur pendek (5 menit).
+### Eksternal (JWT pengguna)
+
+Sertakan JWT dari `register` atau `login` di header `Authorization` untuk permintaan terautentikasi:
+
+```http
+Authorization: Bearer <token>
+```
+
+### Internal (layanan-ke-layanan)
+
+`InternalAuthGuard` memverifikasi JWT berumur pendek (5 menit, `INTERNAL_JWT_SECRET`) antar layanan.
 
 ```ts
-// Membuat token
+// Layanan pemanggil — buat token
 const token = this.internalTokenService.generate();
 await fetch('http://auth-service:3001/graphql', {
-  headers: { Authorization: `Bearer ${token}` },
+  method: 'POST',
+  headers: {
+    Authorization: `Bearer ${token}`,
+    'Content-Type': 'application/json',
+  },
+  body: JSON.stringify({ query: '...', variables: { ... } }),
 });
 ```
+
+Nilai `sub` dalam JWT mengidentifikasi layanan pemanggil (misalnya `"schedule-service"`).

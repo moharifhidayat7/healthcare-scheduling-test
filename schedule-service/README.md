@@ -128,13 +128,15 @@ GET /health    ← server reachability
 
 ## Auth
 
-Endpoints are protected by `ExternalAuthGuard`. Include a JWT from the Auth Service:
+### External (user JWT)
+
+Include the JWT returned from the Auth Service's `register` or `login` in the `Authorization` header for authenticated requests:
 
 ```http
 Authorization: Bearer <token>
 ```
 
-### Service-to-Service
+### Internal (service-to-service)
 
 `InternalAuthGuard` verifies short-lived JWTs (5 min, `INTERNAL_JWT_SECRET`) between services.
 
