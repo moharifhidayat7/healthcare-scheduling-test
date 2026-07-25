@@ -9,8 +9,9 @@ import { CreateScheduleUseCase } from './use-cases/create-schedule.use-case';
 import { GetScheduleUseCase } from './use-cases/get-schedule.use-case';
 import { GetSchedulesUseCase } from './use-cases/get-schedules.use-case';
 import { DeleteScheduleUseCase } from './use-cases/delete-schedule.use-case';
+import { MailModule } from 'src/common/mail/mail.module';
 @Module({
-  imports: [PrismaModule, AuthModule, CustomerModule, DoctorModule],
+  imports: [PrismaModule, AuthModule, CustomerModule, DoctorModule, MailModule],
   providers: [
     ScheduleResolver,
     ScheduleService,
