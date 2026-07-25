@@ -4,92 +4,44 @@ NestJS v11 GraphQL + REST API with Prisma ORM (PostgreSQL), JWT auth, and bcrypt
 
 [🇮🇩 Bahasa Indonesia](./README-ID.md)
 
-## Structure
-
-```
-src/
-├── app.module.ts              ← root module
-├── main.ts                    ← bootstrap with CORS, ValidationPipe, shutdown hooks
-│
-├── config/
-│   └── env-vars.schema.ts     ← Zod validation schema + Env type
-│
-├── integrations/
-│   ├── prisma/                ← PrismaClient wrapper (v7 driver adapter)
-│   ├── redis/                 ← ioredis (lazy connect, lifecycle hooks)
-│   ├── bullmq/                ← Global BullMQ config
-│   └── graphql/               ← Apollo driver with validation error format
-│
-├── common/
-│   ├── auth/
-│   │   ├── auth.guard.ts              ← base guard
-│   │   ├── internal.guard.ts          ← validates internal JWT (INTERNAL_JWT_SECRET)
-│   │   ├── internal-token.service.ts  ← generates service-to-service JWTs
-│   │   ├── user-token.service.ts      ← generates user auth JWTs (JWT_SECRET)
-│   │   ├── token-validator.ts         ← abstract class + JwtPayload type
-│   │   └── strategies/
-│   │       ├── internal-jwt.validator.ts
-│   │       └── user-jwt.validator.ts
-│   ├── cache/
-│   │   ├── cache.module.ts            ← Global module (Redis-backed)
-│   │   └── cache.service.ts
-│   ├── decorators/
-│   │   ├── cacheable.decorator.ts     ← @Cacheable(keyFn, ttl?)
-│   │   └── skip-response-wrap.decorator.ts
-│   ├── filters/
-│   │   └── prisma-client-exception.filter.ts  ← P2001/P2002/P2025 mapping
-│   ├── interceptors/
-│   │   ├── logging.interceptor.ts     ← request logging with input/error details
-│   │   ├── response.interceptor.ts
-│   │   └── cacheable.interceptor.ts
-│   ├── pagination/
-│   │   ├── pagination.type.ts         ← PaginatedType factory
-│   │   ├── pagination.util.ts
-│   │   ├── pagination.interface.ts
-│   │   └── pagination.dto.ts
-│   └── mail/
-│       ├── mail.service.ts
-│       ├── mail.processor.ts
-│       └── interfaces/
-│
-├── modules/
-│   ├── auth/                   ← register, login, validateToken
-│   └── health/                 ← GET /health (server reachability)
-│
-└── prisma/
-    ├── schema.prisma           ← User model
-    ├── seed/
-    └── migrations/
-```
-
-## Configuration
-
-All env vars validated at startup via Zod schema. Injects as `ConfigService<Env, true>`:
-
-```ts
-constructor(private config: ConfigService<Env, true>) {}
-this.config.getOrThrow('JWT_SECRET', { infer: true })  // typed, no fallback
-```
-
 ## Prerequisites
 
 - Node.js 22+
 - pnpm
-- PostgreSQL
+- PostgreSQL 17 (running)
 
 ## Setup
 
 ```bash
 pnpm install
-pnpm prisma generate
 cp .env.example .env
+# Edit .env to match your infrastructure
+pnpm prisma generate
+pnpm prisma migrate deploy
 ```
 
 ## Running
 
 ```bash
-pnpm start:dev      # development
-pnpm start:prod     # production
+pnpm start:dev      # development (watch mode)
+pnpm start          # production
+pnpm start:prod     # compiled output (node dist/src/main.js)
+```
+
+The GraphQL endpoint is at `POST /graphql` on the configured port (default 3001).
+
+## Docker
+
+```bash
+# Build
+docker build -t auth-service:latest .
+
+# Run (requires PostgreSQL accessible via ENV config)
+docker run -d \
+  --name auth-service \
+  --env-file .env \
+  -p 3001:3000 \
+  auth-service:latest
 ```
 
 ## Tests
@@ -97,6 +49,7 @@ pnpm start:prod     # production
 ```bash
 pnpm test          # unit (Jest) — 14 tests across 4 suites
 pnpm test:e2e      # e2e (supertest)
+pnpm test:cov      # with coverage
 ```
 
 ## Environment
@@ -124,30 +77,11 @@ pnpm test:e2e      # e2e (supertest)
 | `MAIL_PASSWORD` | no | — | SMTP password |
 | `MAIL_FROM` | no | `noreply@example.com` | Default sender address |
 
-## Auth
+## API
 
-### Service-to-Service
+### GraphQL
 
-`InternalAuthGuard` verifies short-lived JWTs (5 min, `INTERNAL_JWT_SECRET`) between services.
-
-```ts
-// Service A — sending
-const token = this.internalTokenService.generate();
-await fetch('http://other-service/internal/endpoint', {
-  headers: { Authorization: `Bearer ${token}` },
-});
-
-// Service B — receiving (applies to any service using InternalAuthGuard)
-@UseGuards(InternalAuthGuard)
-@Post('internal/endpoint')
-async handle(@CurrentUser() user: JwtPayload) {
-  console.log(user.sub); // identifies the caller service
-}
-```
-
-### User Auth (GraphQL)
-
-Available at `POST /graphql`. Open the Apollo Sandbox at `http://localhost:3000/graphql`.
+All mutations/queries at `POST /graphql`.
 
 #### register
 
@@ -156,8 +90,6 @@ mutation Register($input: RegisterInput!) {
   register(input: $input) { token }
 }
 ```
-
-**Variables:** `{ "input": { "email": "user@example.com", "password": "securePassword123" } }`
 
 **Errors:** `409 Conflict` — email already registered.
 
@@ -179,20 +111,28 @@ query ValidateToken($token: String!) {
 }
 ```
 
-**Response:** `{ "data": { "validateToken": { "sub": "uuid", "email": "user@example.com", "roles": ["user"] } } }`
-
 **Errors:** `401 Unauthorized` — invalid or expired token.
 
-#### Using the token
+### Using the token
 
 ```http
 Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
 ```
 
-## Docker
+### REST
 
-```bash
-podman compose build auth-service
-podman compose up -d postgresql auth-service
-podman compose run --rm migrate-auth-service
+```
+GET /health    ← server reachability
+```
+
+## Service-to-Service Auth
+
+Other services authenticate to this service using `InternalAuthGuard` with short-lived JWTs (5 min).
+
+```ts
+// Generating a token
+const token = this.internalTokenService.generate();
+await fetch('http://auth-service:3001/graphql', {
+  headers: { Authorization: `Bearer ${token}` },
+});
 ```
