@@ -83,6 +83,10 @@
     ],
     "rootDir": "src",
     "testRegex": ".*\\.spec\\.ts$",
+    "testPathIgnorePatterns": [
+      "/node_modules/",
+      "/modules/empty/"
+    ],
     "transform": {
       "^.+\\.(t|j)s$": "ts-jest"
     },
@@ -92,7 +96,7 @@
     "collectCoverageFrom": [
       "**/*.(t|j)s"
     ],
-    "coverageDirectory": "../coverage",
+    "coveragePathIgnorePatterns": ["/modules/empty/"],
     "testEnvironment": "node"
   }
 }

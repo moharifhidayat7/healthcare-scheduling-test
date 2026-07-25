@@ -3,3 +3,4 @@ nest-ms-boilerplate/
 node_modules/
 dist/
 generated/
+coverage/
