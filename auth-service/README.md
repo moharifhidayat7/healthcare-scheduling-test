@@ -4,6 +4,37 @@ NestJS v11 GraphQL + REST API with Prisma ORM (PostgreSQL), JWT auth, and bcrypt
 
 [🇮🇩 Bahasa Indonesia](./README-ID.md)
 
+## Project Structure
+
+```
+src/
+├── config/
+│   └── env-vars.schema.ts         ← Zod validation + Env type
+├── integrations/
+│   ├── prisma/                    ← PrismaClient (PostgreSQL)
+│   ├── redis/                     ← ioredis
+│   ├── bullmq/                    ← BullMQ config
+│   └── graphql/                   ← Apollo driver
+├── common/
+│   ├── auth/                      ← Guards, validators, token services
+│   ├── cache/                     ← Redis-backed CacheService
+│   ├── decorators/                ← @Cacheable, @SkipResponseWrap
+│   ├── filters/                   ← PrismaClientExceptionFilter
+│   ├── interceptors/              ← Logging, response wrapper, cacheable
+│   └── pagination/                ← PaginatedType, normalizePagination
+├── modules/
+│   └── <module-name>/
+│       ├── <module-name>.module.ts ← @Module definition
+│       ├── <module-name>.service.ts ← Data access + cache
+│       ├── graphql/
+│       │   ├── <module-name>.resolver.ts
+│       │   ├── inputs/              ← @InputType classes
+│       │   └── types/               ← @ObjectType classes
+│       └── use-cases/               ← Orchestration logic
+└── prisma/
+    └── schema.prisma              ← User model
+```
+
 ## Prerequisites
 
 - Node.js 22+

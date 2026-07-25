@@ -4,6 +4,36 @@
 
 Layanan GraphQL NestJS v11 untuk manajemen janji temu pelanggan. Menggunakan Prisma ORM (PostgreSQL), Redis cache/antrean, BullMQ antrean email, dan autentikasi JWT.
 
+## Struktur Proyek
+
+```
+src/
+├── config/
+│   └── env-vars.schema.ts         ← Validasi Zod + tipe Env
+├── integrations/
+│   ├── prisma/                    ← PrismaClient (PostgreSQL)
+│   ├── redis/                     ← ioredis
+│   ├── bullmq/                    ← Konfigurasi BullMQ
+│   └── graphql/                   ← Driver Apollo
+├── common/
+│   ├── auth/                      ← Guard, validator, layanan token
+│   ├── cache/                     ← CacheService (Redis)
+│   ├── dekorator/                 ← @Cacheable, @SkipResponseWrap
+│   ├── filter/                    ← PrismaClientExceptionFilter
+│   ├── interceptor/               ← Logging, response wrapper, cacheable
+│   └── pagination/                ← PaginatedType, normalizePagination
+├── modules/
+│   └── <nama-modul>/
+│       ├── <nama-modul>.module.ts ← Definisi @Module
+│       ├── <nama-modul>.service.ts ← Akses data + cache
+│       ├── graphql/
+│       │   ├── <nama-modul>.resolver.ts
+│       │   ├── inputs/              ← Kelas @InputType
+│       │   └── types/               ← Kelas @ObjectType
+│       └── use-cases/               ← Logika orkestrasi
+└── prisma/
+    └── schema.prisma              ← Model Customer, Doctor, Schedule
+
 ## Prasyarat
 
 - Node.js 22+

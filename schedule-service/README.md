@@ -6,6 +6,36 @@ NestJS v11 GraphQL microservice for managing customer appointments. Prisma ORM (
 
 ## Prerequisites
 
+## Project Structure
+
+```
+src/
+├── config/
+│   └── env-vars.schema.ts         ← Zod validation + Env type
+├── integrations/
+│   ├── prisma/                    ← PrismaClient (PostgreSQL)
+│   ├── redis/                     ← ioredis
+│   ├── bullmq/                    ← BullMQ config
+│   └── graphql/                   ← Apollo driver
+├── common/
+│   ├── auth/                      ← Guards, validators, token service
+│   ├── cache/                     ← Redis-backed CacheService
+│   ├── decorators/                ← @Cacheable, @SkipResponseWrap
+│   ├── filters/                   ← PrismaClientExceptionFilter
+│   ├── interceptors/              ← Logging, response wrapper, cacheable
+│   └── pagination/                ← PaginatedType, normalizePagination
+├── modules/
+│   └── <module-name>/
+│       ├── <module-name>.module.ts ← @Module definition
+│       ├── <module-name>.service.ts ← Data access + cache
+│       ├── graphql/
+│       │   ├── <module-name>.resolver.ts
+│       │   ├── inputs/              ← @InputType classes
+│       │   └── types/               ← @ObjectType classes
+│       └── use-cases/               ← Orchestration logic
+└── prisma/
+    └── schema.prisma              ← Customer, Doctor, Schedule models
+
 - Node.js 22+
 - pnpm
 - PostgreSQL 17 (running)
