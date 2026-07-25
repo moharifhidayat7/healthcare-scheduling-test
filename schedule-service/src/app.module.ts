@@ -10,7 +10,7 @@ import { HealthModule } from './modules/health/health.module';
 import { AuthModule } from './common/auth/auth.module';
 import { LoggingInterceptor } from './common/interceptors/logging.interceptor';
 import { ResponseInterceptor } from './common/interceptors/response.interceptor';
-import { envVarsSchema } from './config/env-vars.schema';
+import { envVarsSchema, Env } from './config/env-vars.schema';
 import { RedisModule } from './integrations/redis/redis.module';
 import { BullMqModule } from './integrations/bullmq/bullmq.module';
 import { CacheModule } from './common/cache/cache.module';
@@ -19,9 +19,9 @@ import { PrismaClientExceptionFilter } from './common/filters/prisma-client-exce
 
 @Module({
   imports: [
-    ConfigModule.forRoot({
+    ConfigModule.forRoot<Env>({
       isGlobal: true,
-      validationSchema: envVarsSchema,
+      validate: (config) => envVarsSchema.parse(config),
     }),
     GraphqlModule,
     PrismaModule,

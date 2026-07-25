@@ -1,6 +1,7 @@
 import { Processor, WorkerHost } from '@nestjs/bullmq';
 import { Job } from 'bullmq';
 import { ConfigService } from '@nestjs/config';
+import { Env } from '../../config/env-vars.schema';
 import * as nodemailer from 'nodemailer';
 import * as handlebars from 'handlebars';
 import { readFile } from 'node:fs/promises';
@@ -13,11 +14,11 @@ export class MailProcessor extends WorkerHost {
   private transporter: nodemailer.Transporter;
   private templateCache = new Map<string, handlebars.TemplateDelegate>();
 
-  constructor(private readonly config: ConfigService) {
+  constructor(private readonly config: ConfigService<Env, true>) {
     super();
     this.transporter = nodemailer.createTransport({
-      host: this.config.get<string>('MAIL_HOST'),
-      port: this.config.get<number>('MAIL_PORT'),
+      host: this.config.getOrThrow('MAIL_HOST', { infer: true }),
+      port: this.config.getOrThrow('MAIL_PORT', { infer: true }),
       auth: this.config.get<string>('MAIL_USER')
         ? {
             user: this.config.get<string>('MAIL_USER'),

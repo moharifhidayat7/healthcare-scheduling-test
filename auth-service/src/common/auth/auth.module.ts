@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { JwtModule } from '@nestjs/jwt';
 import { ConfigModule, ConfigService } from '@nestjs/config';
+import { Env } from '../../config/env-vars.schema';
 import { InternalJwtValidator } from './strategies/internal-jwt.validator';
 import { UserJwtValidator } from './strategies/user-jwt.validator';
 import { InternalAuthGuard } from './internal.guard';
@@ -13,8 +14,8 @@ import { UserJwtService } from './user-jwt.service';
     JwtModule.registerAsync({
       imports: [ConfigModule],
       inject: [ConfigService],
-      useFactory: (config: ConfigService) => ({
-        secret: config.get<string>('INTERNAL_JWT_SECRET'),
+      useFactory: (config: ConfigService<Env, true>) => ({
+        secret: config.getOrThrow('INTERNAL_JWT_SECRET', { infer: true }),
         signOptions: { expiresIn: '5m' },
       }),
     }),
@@ -27,9 +28,9 @@ import { UserJwtService } from './user-jwt.service';
     UserTokenService,
     {
       provide: UserJwtService,
-      useFactory: (config: ConfigService) =>
+      useFactory: (config: ConfigService<Env, true>) =>
         new UserJwtService({
-          secret: config.get<string>('JWT_SECRET'),
+          secret: config.getOrThrow('JWT_SECRET', { infer: true }),
           signOptions: { expiresIn: '24h' },
         }),
       inject: [ConfigService],

@@ -1,36 +1,42 @@
-import * as Joi from 'joi';
+import { z } from 'zod';
 
-export const envVarsSchema = Joi.object({
+export const envVarsSchema = z.object({
   // App
-  NODE_ENV: Joi.string()
-    .valid('development', 'production', 'test')
+  NODE_ENV: z
+    .enum(['development', 'production', 'test'])
     .default('development'),
-  PORT: Joi.number().integer().positive().max(65535).default(3000),
-  SERVICE_NAME: Joi.string().default('unknown'),
+  PORT: z.coerce.number().int().positive().max(65535).default(3000),
+  SERVICE_NAME: z.string().default('unknown'),
 
   // Database
-  DB_HOST: Joi.string().default('localhost'),
-  DB_PORT: Joi.number().integer().positive().max(65535).default(5432),
-  DB_USER: Joi.string().default('postgres'),
-  DB_PASSWORD: Joi.string().default('postgres'),
-  DB_NAME: Joi.string().default('auth_service'),
+  DB_HOST: z.string().default('localhost'),
+
+  // Database URL (constructed at runtime by compose, but can also be set directly)
+  DATABASE_URL: z.string(),
+  DB_PORT: z.coerce.number().int().positive().max(65535).default(5432),
+  DB_USER: z.string().default('postgres'),
+  DB_PASSWORD: z.string().default('postgres'),
+  DB_NAME: z.string().default('auth_service'),
 
   // Auth
-  INTERNAL_JWT_SECRET: Joi.string().min(8).required(),
-  AUTH_SERVICE_URL: Joi.string().uri().required(),
+  INTERNAL_JWT_SECRET: z.string().min(8),
+  AUTH_SERVICE_URL: z.string().url(),
 
   // Redis
-  REDIS_HOST: Joi.string().required(),
-  REDIS_PORT: Joi.number().integer().positive().max(65535).default(6379),
-  REDIS_PASSWORD: Joi.string().allow('').optional(),
-  REDIS_DB: Joi.number().integer().min(0).default(0),
+  REDIS_HOST: z.string(),
+  REDIS_PORT: z.coerce.number().int().positive().max(65535).default(6379),
+  REDIS_PASSWORD: z.string().default(''),
+  REDIS_DB: z.coerce.number().int().min(0).default(0),
 
   // Cache
-  CACHE_TTL: Joi.number().integer().positive().default(300),
+  CACHE_TTL: z.coerce.number().int().positive().default(300),
+
   // Mail
-  MAIL_HOST: Joi.string().required(),
-  MAIL_PORT: Joi.number().integer().positive().max(65535).default(587),
-  MAIL_USER: Joi.string().allow('').optional(),
-  MAIL_PASSWORD: Joi.string().allow('').optional(),
-  MAIL_FROM: Joi.string().default('noreply@example.com'),
+  MAIL_HOST: z.string(),
+  MAIL_PORT: z.coerce.number().int().positive().max(65535).default(587),
+  MAIL_USER: z.string().optional(),
+  MAIL_PASSWORD: z.string().optional(),
+  MAIL_FROM: z.string().optional(),
 });
+
+export type Env = z.infer<typeof envVarsSchema>;

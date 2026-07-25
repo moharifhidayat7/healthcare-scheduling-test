@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { Env } from '../../config/env-vars.schema';
 import { InjectQueue } from '@nestjs/bullmq';
 import { Queue } from 'bullmq';
 import { MAIL_QUEUE } from './mail.constants';
@@ -8,12 +9,12 @@ import { MailJobPayload, SendMailOptions } from './interfaces/mail.interface';
 @Injectable()
 export class MailService {
   constructor(
-    private readonly config: ConfigService,
+    private readonly config: ConfigService<Env, true>,
     @InjectQueue(MAIL_QUEUE) private readonly mailQueue: Queue,
   ) {}
 
   async send(options: SendMailOptions): Promise<void> {
-    const from = this.config.get<string>('MAIL_FROM') ?? 'noreply@example.com';
+    const from = this.config.getOrThrow('MAIL_FROM', { infer: true });
     const to = Array.isArray(options.to) ? options.to : [options.to];
     const cc = options.cc
       ? Array.isArray(options.cc)

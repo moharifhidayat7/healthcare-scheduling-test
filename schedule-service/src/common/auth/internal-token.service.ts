@@ -1,17 +1,18 @@
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { Env } from '../../config/env-vars.schema';
 import { JwtService } from '@nestjs/jwt';
 
 @Injectable()
 export class InternalTokenService {
   constructor(
     private readonly jwtService: JwtService,
-    private readonly config: ConfigService,
+    private readonly config: ConfigService<Env, true>,
   ) {}
 
   generate(): string {
     return this.jwtService.sign({
-      sub: this.config.get<string>('SERVICE_NAME', 'unknown'),
+      sub: this.config.getOrThrow('SERVICE_NAME', { infer: true }),
       roles: ['internal'],
     });
   }

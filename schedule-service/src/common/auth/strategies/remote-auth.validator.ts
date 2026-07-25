@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { Env } from '../../../config/env-vars.schema';
 import axios from 'axios';
 import { TokenValidator, JwtPayload } from '../token-validator';
 
@@ -8,9 +9,9 @@ export class RemoteAuthValidator extends TokenValidator {
   private readonly url: string;
   private readonly timeoutMs: number;
 
-  constructor(config: ConfigService) {
+  constructor(config: ConfigService<Env, true>) {
     super();
-    this.url = config.get<string>('AUTH_SERVICE_URL', 'http://localhost:4000');
+    this.url = config.getOrThrow('AUTH_SERVICE_URL', { infer: true });
     this.timeoutMs = 2000;
   }
 
