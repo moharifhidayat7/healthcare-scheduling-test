@@ -59,6 +59,19 @@ services:
     networks:
       - backend
 
+  redis-commander:
+    image: rediscommander/redis-commander:latest
+    container_name: ${COMPOSE_PROJECT_NAME:-hss}-redis-commander
+    restart: unless-stopped
+    ports:
+      - "8081:8081"
+    environment:
+      REDIS_HOST: redis
+      REDIS_PORT: "6379"
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-}
+    networks:
+      - backend
+
   # ─── Microservices ───────────────────────────────────
   auth-service:
     build:

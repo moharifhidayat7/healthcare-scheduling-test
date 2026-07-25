@@ -3,7 +3,6 @@ import { ConfigModule } from '@nestjs/config';
 import { APP_INTERCEPTOR, APP_FILTER } from '@nestjs/core';
 import { PrismaModule } from './integrations/prisma/prisma.module';
 import { GraphqlModule } from './integrations/graphql/graphql.module';
-import { CacheModule } from './common/cache/cache.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { AuthModule as CommonAuthModule } from './common/auth/auth.module';
 import { LoggingInterceptor } from './common/interceptors/logging.interceptor';
@@ -17,7 +16,6 @@ import { envVarsSchema, Env } from './config/env-vars.schema';
       isGlobal: true,
       validate: (config) => envVarsSchema.parse(config),
     }),
-    CacheModule,
     GraphqlModule,
     PrismaModule,
     AuthModule,

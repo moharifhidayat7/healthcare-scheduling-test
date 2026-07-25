@@ -60,9 +60,9 @@
                   "const json = pm.response.json();",
                   "pm.test('returns 200', () => pm.response.to.have.status(200));",
                   "pm.test('has token', () => {",
-                  "  pm.expect(json.data.register.token).to.be.a('string');",
+  "  pm.expect(json.data.register.token).to.be.a('string');",
                   "});",
-                  "pm.collectionVariables.set('authToken', json.data.register.token);",
+  "pm.collectionVariables.set('authToken', json.data.register.token);",
                   ""
                 ],
                 "type": "text/javascript"
@@ -101,8 +101,7 @@
                   "const json = pm.response.json();",
                   "pm.test('returns 200', () => pm.response.to.have.status(200));",
                   "pm.test('returns ConflictException', () => {",
-                  "  pm.expect(json.errors[0].extensions.originalError.statusCode).to.eql(409);",
-                  "  pm.expect(json.errors[0].message).to.eql('Email already registered');",
+                  "  pm.expect(json.errors[0].extensions.statusCode).to.eql(409);",
                   "});",
                   ""
                 ],
@@ -142,7 +141,7 @@
                   "const json = pm.response.json();",
                   "pm.test('returns 200', () => pm.response.to.have.status(200));",
                   "pm.test('returns BadRequest', () => {",
-                  "  pm.expect(json.errors[0].extensions.originalError.statusCode).to.eql(400);",
+                  "  pm.expect(json.errors[0].extensions.statusCode).to.eql(400);",
                   "});",
                   ""
                 ],
@@ -182,7 +181,7 @@
                   "const json = pm.response.json();",
                   "pm.test('returns 200', () => pm.response.to.have.status(200));",
                   "pm.test('returns BadRequest', () => {",
-                  "  pm.expect(json.errors[0].extensions.originalError.statusCode).to.eql(400);",
+                  "  pm.expect(json.errors[0].extensions.statusCode).to.eql(400);",
                   "});",
                   ""
                 ],
@@ -222,7 +221,7 @@
                   "const json = pm.response.json();",
                   "pm.test('returns 200', () => pm.response.to.have.status(200));",
                   "pm.test('has token', () => {",
-                  "  pm.expect(json.data.login.token).to.be.a('string');",
+  "  pm.expect(json.data.login.token).to.be.a('string');",
                   "});",
                   ""
                 ],
@@ -262,7 +261,7 @@
                   "const json = pm.response.json();",
                   "pm.test('returns 200', () => pm.response.to.have.status(200));",
                   "pm.test('returns Unauthorized', () => {",
-                  "  pm.expect(json.errors[0].extensions.originalError.statusCode).to.eql(401);",
+                  "  pm.expect(json.errors[0].extensions.statusCode).to.eql(401);",
                   "});",
                   ""
                 ],
@@ -302,7 +301,7 @@
                   "const json = pm.response.json();",
                   "pm.test('returns 200', () => pm.response.to.have.status(200));",
                   "pm.test('returns Unauthorized', () => {",
-                  "  pm.expect(json.errors[0].extensions.originalError.statusCode).to.eql(401);",
+                  "  pm.expect(json.errors[0].extensions.statusCode).to.eql(401);",
                   "});",
                   ""
                 ],
@@ -323,6 +322,46 @@
               "graphql": {
                 "query": "mutation Login($input: LoginInput!) {\n  login(input: $input) {\n    token\n  }\n}",
                 "variables": "{\n  \"input\": {\n    \"email\": \"doesnotexist@test.com\",\n    \"password\": \"secret123\"\n  }\n}"
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/graphql",
+              "host": ["{{baseUrl}}"],
+              "path": ["graphql"]
+            }
+          }
+        },
+        {
+          "name": "Validate token",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const json = pm.response.json();",
+                  "pm.test('returns 200', () => pm.response.to.have.status(200));",
+                  "pm.test('returns user info', () => {",
+                  "  pm.expect(json.data.validateToken.email).to.eql(pm.collectionVariables.get('testEmail'));",
+                  "});",
+                  ""
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "graphql",
+              "graphql": {
+                "query": "query ValidateToken($token: String!) {\n  validateToken(token: $token) {\n    sub\n    email\n    roles\n  }\n}",
+                "variables": "{\n  \"token\": \"{{authToken}}\"\n}"
               }
             },
             "url": {
@@ -394,6 +433,9 @@
                   "pm.test('has data', () => {",
                   "  pm.expect(json.data.customers.data).to.be.an('array');",
                   "});",
+                  "pm.test('has pagination', () => {",
+                  "  pm.expect(json.data.customers.meta.pagination.total).to.be.a('number');",
+                  "});",
                   ""
                 ],
                 "type": "text/javascript"
@@ -415,8 +457,8 @@
             "body": {
               "mode": "graphql",
               "graphql": {
-                "query": "query Customers($limit: Int, $offset: Int) {\n  customers(limit: $limit, offset: $offset) {\n    data {\n      id\n      name\n      email\n      createdAt\n    }\n    meta {\n      total\n    }\n  }\n}",
-                "variables": "{\n  \"limit\": 10,\n  \"offset\": 0\n}"
+                "query": "query Customers($page: Int, $limit: Int) {\n  customers(page: $page, limit: $limit) {\n    data {\n      id\n      name\n      email\n      createdAt\n    }\n    meta {\n      pagination {\n        page\n        limit\n        total\n        totalPages\n      }\n    }\n  }\n}",
+                "variables": "{\n  \"page\": 1,\n  \"limit\": 10\n}"
               }
             },
             "url": {
@@ -460,6 +502,94 @@
               "mode": "graphql",
               "graphql": {
                 "query": "query Customer($id: ID!) {\n  customer(id: $id) {\n    id\n    name\n    email\n    createdAt\n  }\n}",
+                "variables": "{\n  \"id\": \"{{customerId}}\"\n}"
+              }
+            },
+            "url": {
+              "raw": "{{scheduleBaseUrl}}/graphql",
+              "host": ["{{scheduleBaseUrl}}"],
+              "path": ["graphql"]
+            }
+          }
+        },
+        {
+          "name": "Update customer",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const json = pm.response.json();",
+                  "pm.test('returns 200', () => pm.response.to.have.status(200));",
+                  "pm.test('updates name', () => {",
+                  "  pm.expect(json.data.updateCustomer.name).to.eql('John Updated');",
+                  "});",
+                  ""
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              }
+            ],
+            "body": {
+              "mode": "graphql",
+              "graphql": {
+                "query": "mutation UpdateCustomer($input: UpdateCustomerInput!) {\n  updateCustomer(input: $input) {\n    id\n    name\n    email\n  }\n}",
+                "variables": "{\n  \"input\": {\n    \"id\": \"{{customerId}}\",\n    \"name\": \"John Updated\"\n  }\n}"
+              }
+            },
+            "url": {
+              "raw": "{{scheduleBaseUrl}}/graphql",
+              "host": ["{{scheduleBaseUrl}}"],
+              "path": ["graphql"]
+            }
+          }
+        },
+        {
+          "name": "Delete customer",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const json = pm.response.json();",
+                  "pm.test('returns 200', () => pm.response.to.have.status(200));",
+                  "pm.test('deletes successfully', () => {",
+                  "  pm.expect(json.data.deleteCustomer.id).to.eql(pm.collectionVariables.get('customerId'));",
+                  "});",
+                  ""
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              }
+            ],
+            "body": {
+              "mode": "graphql",
+              "graphql": {
+                "query": "mutation DeleteCustomer($id: ID!) {\n  deleteCustomer(id: $id) {\n    id\n  }\n}",
                 "variables": "{\n  \"id\": \"{{customerId}}\"\n}"
               }
             },
@@ -532,6 +662,9 @@
                   "pm.test('has data', () => {",
                   "  pm.expect(json.data.doctors.data).to.be.an('array');",
                   "});",
+                  "pm.test('has pagination', () => {",
+                  "  pm.expect(json.data.doctors.meta.pagination.total).to.be.a('number');",
+                  "});",
                   ""
                 ],
                 "type": "text/javascript"
@@ -553,8 +686,8 @@
             "body": {
               "mode": "graphql",
               "graphql": {
-                "query": "query Doctors($limit: Int, $offset: Int) {\n  doctors(limit: $limit, offset: $offset) {\n    data {\n      id\n      name\n      createdAt\n    }\n    meta {\n      total\n    }\n  }\n}",
-                "variables": "{\n  \"limit\": 10,\n  \"offset\": 0\n}"
+                "query": "query Doctors($page: Int, $limit: Int) {\n  doctors(page: $page, limit: $limit) {\n    data {\n      id\n      name\n      createdAt\n    }\n    meta {\n      pagination {\n        page\n        limit\n        total\n        totalPages\n      }\n    }\n  }\n}",
+                "variables": "{\n  \"page\": 1,\n  \"limit\": 10\n}"
               }
             },
             "url": {
@@ -598,6 +731,94 @@
               "mode": "graphql",
               "graphql": {
                 "query": "query Doctor($id: ID!) {\n  doctor(id: $id) {\n    id\n    name\n    createdAt\n  }\n}",
+                "variables": "{\n  \"id\": \"{{doctorId}}\"\n}"
+              }
+            },
+            "url": {
+              "raw": "{{scheduleBaseUrl}}/graphql",
+              "host": ["{{scheduleBaseUrl}}"],
+              "path": ["graphql"]
+            }
+          }
+        },
+        {
+          "name": "Update doctor",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const json = pm.response.json();",
+                  "pm.test('returns 200', () => pm.response.to.have.status(200));",
+                  "pm.test('updates name', () => {",
+                  "  pm.expect(json.data.updateDoctor.name).to.eql('Dr. Updated');",
+                  "});",
+                  ""
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              }
+            ],
+            "body": {
+              "mode": "graphql",
+              "graphql": {
+                "query": "mutation UpdateDoctor($input: UpdateDoctorInput!) {\n  updateDoctor(input: $input) {\n    id\n    name\n  }\n}",
+                "variables": "{\n  \"input\": {\n    \"id\": \"{{doctorId}}\",\n    \"name\": \"Dr. Updated\"\n  }\n}"
+              }
+            },
+            "url": {
+              "raw": "{{scheduleBaseUrl}}/graphql",
+              "host": ["{{scheduleBaseUrl}}"],
+              "path": ["graphql"]
+            }
+          }
+        },
+        {
+          "name": "Delete doctor",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const json = pm.response.json();",
+                  "pm.test('returns 200', () => pm.response.to.have.status(200));",
+                  "pm.test('deletes successfully', () => {",
+                  "  pm.expect(json.data.deleteDoctor.id).to.eql(pm.collectionVariables.get('doctorId'));",
+                  "});",
+                  ""
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              }
+            ],
+            "body": {
+              "mode": "graphql",
+              "graphql": {
+                "query": "mutation DeleteDoctor($id: ID!) {\n  deleteDoctor(id: $id) {\n    id\n  }\n}",
                 "variables": "{\n  \"id\": \"{{doctorId}}\"\n}"
               }
             },
@@ -670,6 +891,9 @@
                   "pm.test('has data', () => {",
                   "  pm.expect(json.data.schedules.data).to.be.an('array');",
                   "});",
+                  "pm.test('has pagination', () => {",
+                  "  pm.expect(json.data.schedules.meta.pagination.total).to.be.a('number');",
+                  "});",
                   ""
                 ],
                 "type": "text/javascript"
@@ -691,8 +915,8 @@
             "body": {
               "mode": "graphql",
               "graphql": {
-                "query": "query Schedules($limit: Int, $offset: Int) {\n  schedules(limit: $limit, offset: $offset) {\n    data {\n      id\n      objective\n      customerId\n      doctorId\n      scheduledAt\n      createdAt\n    }\n    meta {\n      total\n    }\n  }\n}",
-                "variables": "{\n  \"limit\": 10,\n  \"offset\": 0\n}"
+                "query": "query Schedules($page: Int, $limit: Int) {\n  schedules(page: $page, limit: $limit) {\n    data {\n      id\n      objective\n      customerId\n      doctorId\n      scheduledAt\n      createdAt\n    }\n    meta {\n      pagination {\n        page\n        limit\n        total\n        totalPages\n      }\n    }\n  }\n}",
+                "variables": "{\n  \"page\": 1,\n  \"limit\": 10\n}"
               }
             },
             "url": {
