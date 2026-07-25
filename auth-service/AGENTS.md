@@ -8,11 +8,11 @@
 
 ```
 HTTP (Express) ──► AppModule
-                      ├─► GlobalInterceptors (Logging, Response wrapper)
-                      ├─► GlobalExceptionFilter
+                      ├─► GlobalInterceptors (Logging, Response wrapper, Cacheable)
+                      ├─► GlobalFilters (PrismaClientExceptionFilter)
                       │
-                      ├─► AuthModule ──► Guards
-                      │    │                └─ InternalAuthGuard ← InternalJwtValidator (JwtService.verify, INTERNAL_JWT_SECRET)
+                      ├─► AuthModule (auth) ──► Guards
+                      │    │                       └─ InternalAuthGuard ← InternalJwtValidator (JwtService.verify, INTERNAL_JWT_SECRET)
                       │    │
                       │    ├─► UserTokenService ──► JWT (JWT_SECRET) for user auth
                       │    └─► UserJwtValidator ──► validates user tokens
@@ -22,21 +22,22 @@ HTTP (Express) ──► AppModule
                       │    ├─ LoginUseCase          (bcrypt compare + token)
                       │    └─ ValidateTokenUseCase  (JWT verify → user info)
                       │
-                      ├─► HealthModule ──► GET /health (Prisma ping)
+                      ├─► HealthModule ──► GET /health (empty check — server reachability)
                       │
                       ├─► GraphqlModule ──► Apollo Driver, autoSchemaFile
-                      │                      Default: POST /graphql
+                      │                       formatError includes validation detail messages
                       │
-                      ├─► EmptyModule ──► Scaffold module (REST web/mobile + GraphQL)
+                      ├─► CacheModule ──► CacheService (Redis-backed with JSON date reviver)
+                      │
                       ├─► PrismaModule ──► PrismaClient (PostgreSQL via @prisma/adapter-pg)
-                      ├─► RedisModule ──► ioredis (commented out — optional)
-                      ├─► BullMqModule ──► BullMQ (commented out — optional)
-                      └─► MailModule ──► MailService / MailProcessor (commented out — optional)
+                      ├─► RedisModule ──► ioredis (lazy connect, lifecycle hooks)
+                      ├─► BullMqModule ──► Global BullMQ config (reuses redis.* config)
+                      └─► MailModule ──► MailService / MailProcessor (BullMQ + nodemailer)
                                            ├─ Handlebars.render(template, context)
                                            └─ Nodemailer.sendMail(SMTP)
 ```
 
-**Config flow**: `src/config/env-vars.schema.ts` (Joi-validated) → `ConfigModule.forRoot()` → `ConfigService.get('ENV_VAR_NAME')` anywhere in DI. No namespacing — values accessed directly by env var name.
+**Config flow**: `src/config/env-vars.schema.ts` (Zod-validated) → `ConfigModule.forRoot<Env>()` → `ConfigService<Env, true>.get('KEY', { infer: true })` anywhere in DI.
 
 **Auth flow** (user-facing): `register` mutation → `RegisterUseCase` → bcrypt hash → Prisma create → `UserTokenService.generate()` → JWT (signed with `JWT_SECRET`).
 
@@ -46,19 +47,20 @@ HTTP (Express) ──► AppModule
 
 | Path | Purpose |
 |---|---|
-| `src/config/` | Joi env var schema (`env-vars.schema.ts`) |
-| `src/integrations/` | Infrastructure modules: Prisma, GraphQL, Redis (opt), BullMQ (opt) |
+| `src/config/` | Zod env var schema + inferred `Env` type |
+| `src/integrations/` | Infrastructure modules: Prisma, Redis, BullMQ, GraphQL |
+| `src/common/cache/` | `CacheService` (Redis-backed with JSON date reviver), `CacheModule` |
 | `src/common/auth/` | Auth guards, JWT validators (internal + user), token services, decorator |
-| `src/common/mail/` | Mail module (commented out — optional) |
-| `src/common/interceptors/` | Logging interceptor, response wrapper interceptor |
-| `src/common/filters/` | Global exception filter |
-| `src/common/pagination/` | Pagination DTO and interfaces |
-| `src/common/decorators/` | Custom decorators (`@SkipResponseWrap`) |
-| `src/modules/` | Feature modules: auth, health, empty (scaffold) |
+| `src/common/mail/` | Mail queue (BullMQ) + nodemailer transport |
+| `src/common/interceptors/` | Logging interceptor, response wrapper interceptor, cacheable interceptor |
+| `src/common/filters/` | `PrismaClientExceptionFilter` (P2001/P2002/P2025 mapping) |
+| `src/common/pagination/` | `normalizePagination` util, `PaginatedType` factory, interfaces, DTO |
+| `src/common/decorators/` | `@Cacheable`, `@SkipResponseWrap`, `@Paginated` |
+| `src/modules/` | Feature modules: auth, health |
 | `src/integrations/prisma/` | PrismaClient wrapper (v7, driver adapter pattern) |
 | `test/` | E2E tests, mocks, jest configs |
-| `prisma/` | Schema, migrations, seed (bcrypt hashed password) |
-| `scripts/` | Dev utility scripts (e.g., `generate-token.ts`) |
+| `prisma/` | Schema, migrations, seed |
+| `scripts/` | Dev utility scripts |
 
 ## Development Commands
 
@@ -85,11 +87,8 @@ Each module follows the NestJS convention:
 module/
 ├── module-name.module.ts       ← @Module({ imports, providers, controllers, exports })
 ├── module-name.service.ts       ← @Injectable() business logic
-├── module-name.processor.ts     ← @Processor() BullMQ worker (if queued)
-├── interfaces/                  ← TypeScript interfaces
-├── use-cases/                   ← @Injectable() use-case classes
-├── rest/{web,mobile}/           ← @Controller() with DTOs
 ├── graphql/                     ← @Resolver(), @ObjectType, @InputType
+├── use-cases/                   ← @Injectable() application logic
 └── *.spec.ts                    ← Tests alongside source
 ```
 
@@ -100,10 +99,12 @@ module/
 
 ### Config Validation
 
-All environment variables validated at startup via a single Joi schema in `src/config/env-vars.schema.ts`. Values accessed directly by env var name through `ConfigService`:
+Zod schema in `src/config/env-vars.schema.ts`. Injects as `ConfigService<Env, true>`:
 
 ```ts
-const host = config.get<string>('REDIS_HOST');
+constructor(private config: ConfigService<Env, true>) {}
+this.config.getOrThrow('JWT_SECRET', { infer: true })  // typed, no fallback
+this.config.get('MAIL_USER', { infer: true })          // string | undefined for optional keys
 ```
 
 ### Service Lifecycle
@@ -129,8 +130,10 @@ const host = config.get<string>('REDIS_HOST');
 
 ### Exception Handling
 
-- `GlobalExceptionFilter` catches everything via `@Catch()`
-- Returns: `{ statusCode, message, data: null, meta: { timestamp, path } }`
+- `PrismaClientExceptionFilter` catches `PrismaClientKnownRequestError`
+  - P2001 / P2025 → `NotFoundException`
+  - P2002 (unique constraint) → `ConflictException` with field names from `meta.target`
+- Unknown Prisma codes re-thrown
 - Registered via `APP_FILTER` provider token
 
 ### Response Format
@@ -141,7 +144,7 @@ const host = config.get<string>('REDIS_HOST');
 
 ### Validation
 
-- **Config**: Joi schema in `src/config/env-vars.schema.ts` (validated at startup)
+- **Config**: Zod schema in `src/config/` (validated at startup, `z.infer` provides `Env` type)
 - **Runtime**: `class-validator` + `class-transformer` via NestJS `ValidationPipe` (global, `whitelist: true`, `forbidNonWhitelisted: true`, `transform: true`)
 
 ### BullMQ Queues
@@ -150,29 +153,41 @@ const host = config.get<string>('REDIS_HOST');
 - Register queues via `BullModule.registerQueue({ name })` in feature modules
 - Consumers extend `WorkerHost` with `@Processor(name)` decorator
 
+### Caching Pattern
+
+- `@Cacheable(keyFn, ttl?)` on read methods
+- Direct `this.cache.del(key)` / `this.cache.delByPattern(pattern)` in write methods
+- JSON date reviver in `CacheService.get()` converts ISO strings back to `Date` objects
+
+### Pagination (future use)
+
+- `normalizePagination(page?, limit?)` → clamps page ≥ 1, limit 1-100
+- `buildPaginatedResult(data, total, { page, limit })` → `{ data, meta: { pagination: ... } }`
+- GraphQL types: `PaginatedType(EntityType)` → `meta { pagination { ... } }`
+
 ## Important Files
 
 | File | Role |
 |---|---|
 | `src/main.ts` | Bootstrap: `NestFactory.create`, CORS, ValidationPipe, shutdown hooks, listen on `PORT` |
 | `src/app.module.ts` | Root module — wires all integrations, modules, global interceptors/filters |
-| `src/config/env-vars.schema.ts` | Joi validation schema for all env vars |
+| `src/config/env-vars.schema.ts` | Zod validation schema + `Env` type |
+| `src/common/filters/prisma-client-exception.filter.ts` | Prisma error → NestJS exception mapping |
+| `src/common/cache/cache.service.ts` | Redis-backed cache with JSON date reviver |
+| `src/common/decorators/cacheable.decorator.ts` | `@Cacheable(keyFn, ttl?)` decorator |
+| `src/common/interceptors/cacheable.interceptor.ts` | Cache-aside interceptor |
+| `src/common/interceptors/logging.interceptor.ts` | Request logging with input args and error stacks |
+| `src/common/interceptors/response.interceptor.ts` | Response envelope wrapper |
 | `src/common/auth/auth.guard.ts` | Base auth guard — token extraction, delegation |
 | `src/common/auth/token-validator.ts` | Abstract validator + `JwtPayload` interface |
 | `src/common/auth/user-token.service.ts` | Generates user-facing JWTs (`JWT_SECRET`) |
-| `src/common/auth/strategies/user-jwt.validator.ts` | Validates user-facing JWTs |
-| `src/common/auth/strategies/internal-jwt.validator.ts` | Validates service-to-service JWTs |
-| `src/common/auth/internal-token.service.ts` | Generates outgoing service-to-service JWTs (`INTERNAL_JWT_SECRET`) |
-| `src/common/interceptors/response.interceptor.ts` | Response envelope wrapper |
-| `src/common/filters/global-exception.filter.ts` | Unified error response |
 | `src/integrations/prisma/prisma.service.ts` | PrismaClient wrapper (v7 driver adapter) |
+| `src/integrations/graphql/graphql.module.ts` | Apollo driver config with validation error format |
 | `src/modules/auth/` | GraphQL auth module — resolver + use-cases |
 | `src/modules/health/health.controller.ts` | `GET /health` endpoint |
-| `src/modules/empty/` | Scaffold module (template for new features) |
 | `prisma/schema.prisma` | `User` model with bcrypt-hashed password |
 | `prisma/seed/index.ts` | Seed script using bcrypt for password hash |
 | `prisma.config.ts` | Prisma v7 `defineConfig` |
-| `test/app.e2e-spec.ts` | E2E smoke tests |
 | `Dockerfile` | Multi-stage pnpm build |
 
 ## Runtime/Tooling Preferences
@@ -184,7 +199,7 @@ const host = config.get<string>('REDIS_HOST');
 | **Language** | TypeScript 5.7, target ES2023, module `nodenext` |
 | **Strictness** | `strictNullChecks` + `noImplicitAny` (not full `strict`) |
 | **Decorators** | `experimentalDecorators` + `emitDecoratorMetadata` (NestJS requirement) |
-| **Formatting** | Prettier (singleQuote, trailingComma: all, no semicolon override → required) |
+| **Formatting** | Prettier (singleQuote, trailingComma: all) |
 | **Linting** | ESLint flat config, type-aware, Prettier integration |
 | **DI** | Constructor-based (NestJS standard) |
 | **No path aliases** | Use relative imports throughout |
@@ -212,18 +227,16 @@ pnpm test:watch    # Watch mode
 - **rootDir**: `src` — specs live alongside source
 - **testRegex**: `.*\.spec\.ts$` — any `*.spec.ts` under `src/`
 - **collectCoverageFrom**: `**/*.(t|j)s`
-- Place test files next to the code they test: `register.use-case.ts` → `register.use-case.spec.ts`
+- Place test files next to the code they test
 
 ### E2E Tests
 
 - Custom config at `test/jest-e2e.json`
 - PrismaClient mocked via `moduleNameMapper` → `test/__mocks__/prisma-client.ts`
-- DI overrides via `.overrideProvider()` for PrismaService/PrismaHealthIndicator
 - App bootstrapped fresh per test via `Test.createTestingModule`
 
 ### Current Coverage
 
-2 E2E tests (health endpoint, GraphQL hello query).
 14 unit tests across 4 test suites (resolver + 3 use-cases).
 
 ### Mock Pattern (E2E)

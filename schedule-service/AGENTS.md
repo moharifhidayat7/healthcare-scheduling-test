@@ -2,25 +2,34 @@
 
 ## Project Overview
 
-**Nest Microservice Boilerplate** — NestJS microservice boilerplate with GraphQL + REST, Prisma ORM, Redis cache/queues, and pluggable auth. A single-deployment NestJS v11 app that communicates with other services via HTTP + JWT (not a microservice mesh within this repo).
+**Schedule Service** — NestJS v11 GraphQL microservice for managing customer appointments. Prisma ORM (PostgreSQL), Redis cache/queues, BullMQ mail queue, and pluggable auth. Communicates with the Auth Service via HTTP + JWT.
 
 ## Architecture & Data Flow
 
 ```
 HTTP (Express) ──► AppModule
-                      ├─► GlobalInterceptors (Logging, Response wrapper)
-                      ├─► GlobalExceptionFilter
+                      ├─► GlobalInterceptors (Logging, Response wrapper, Cacheable)
+                      ├─► GlobalFilters (PrismaClientExceptionFilter)
                       │
                       ├─► AuthModule ──► Guards ──► TokenValidators
                       │                    │           ├─ InternalJwtValidator (JwtService.verify)
                       │                    │           └─ RemoteAuthValidator (HTTP POST to Auth Service)
                       │                    └─► InternalTokenService (generates outgoing JWTs)
                       │
-                      ├─► HealthModule ──► GET /health (Prisma ping + Redis ping)
+                      ├─► HealthModule ──► GET /health (empty check — server reachability)
                       │
                       ├─► GraphqlModule ──► Apollo Driver, autoSchemaFile
+                      │                       formatError includes validation detail messages
                       │
-                      ├─► EmptyModule ──► Scaffold module (REST web/mobile + GraphQL)
+                      ├─► CustomerModule ──► Resolver ──► UseCases ──► CustomerService (data + cache)
+                      │                                                      exports: CustomerService
+                      ├─► DoctorModule ──► Resolver ──► UseCases ──► DoctorService (data + cache)
+                      │                                                    exports: DoctorService
+                      ├─► ScheduleModule ──► Resolver ──► UseCases (orchestrate)
+                      │                                            │  ├─ CustomerService.findById
+                      │                                            │  ├─ DoctorService.findById
+                      │                                            │  └─ MailService.send
+                      │                                            └─► ScheduleService (data + cache)
                       │
                       ├─► PrismaModule ──► PrismaClient (PostgreSQL via @prisma/adapter-pg)
                       ├─► RedisModule ──► ioredis (lazy connect, lifecycle hooks)
@@ -31,7 +40,7 @@ HTTP (Express) ──► AppModule
                                                                                       └─ Nodemailer.sendMail(SMTP)
 ```
 
-**Config flow**: `src/config/*.config.ts` (Zod-validated `registerAs` factories) → `env.config.ts` barrel → `AppModule` load array → `ConfigService.get('namespace.key')` anywhere in DI.
+**Config flow**: `src/config/env-vars.schema.ts` (Zod-validated) → `ConfigModule.forRoot<Env>()` → `ConfigService<Env, true>.get('KEY', { infer: true })` anywhere in DI.
 
 **Auth flow**: `@UseGuards(InternalAuthGuard|ExternalAuthGuard)` → `AuthGuard.canActivate` extracts Bearer token → `TokenValidator.validate(token)` → attaches `request.user: JwtPayload`.
 
@@ -39,18 +48,20 @@ HTTP (Express) ──► AppModule
 
 | Path | Purpose |
 |---|---|
-| `src/config/` | Zod-validated config factories (`registerAs`), barrel `env.config.ts` |
+| `src/config/` | Zod env var schema + inferred `Env` type |
 | `src/integrations/` | Infrastructure modules: Prisma, Redis, BullMQ, GraphQL |
 | `src/common/auth/` | Auth guards, validators, token service, decorator |
-| `src/common/interceptors/` | Logging interceptor, response wrapper interceptor |
-| `src/common/filters/` | Global exception filter |
-| `src/common/pagination/` | Pagination DTO and interfaces |
-| `src/common/decorators/` | Custom decorators (`@SkipResponseWrap`) |
-| `src/modules/` | Feature modules: health, empty (scaffold), mail |
+| `src/common/cache/` | `CacheService` (Redis-backed with JSON date reviver), `CacheModule` |
+| `src/common/interceptors/` | Logging interceptor, response wrapper interceptor, cacheable interceptor |
+| `src/common/filters/` | `PrismaClientExceptionFilter` (P2001/P2002/P2025 mapping) |
+| `src/common/pagination/` | `normalizePagination` util, `PaginatedType` factory, interfaces, DTO |
+| `src/common/decorators/` | `@Cacheable`, `@SkipResponseWrap`, `@Paginated` |
+| `src/common/mail/` | Mail queue (BullMQ) + nodemailer transport |
+| `src/modules/` | Feature modules: customer, doctor, schedule, health |
 | `src/integrations/prisma/` | PrismaClient wrapper (v7, driver adapter pattern) |
 | `test/` | E2E tests, mocks, jest configs |
-| `prisma/` | Schema, migrations, seed |
-| `scripts/` | Dev utility scripts (e.g., `generate-token.ts`) |
+| `prisma/` | Schema, migrations |
+| `scripts/` | Dev utility scripts |
 
 ## Development Commands
 
@@ -76,66 +87,52 @@ Each module follows the NestJS convention:
 ```
 module/
 ├── module-name.module.ts       ← @Module({ imports, providers, controllers, exports })
-├── module-name.service.ts       ← @Injectable() business logic
-├── module-name.processor.ts     ← @Processor() BullMQ worker (if queued)
-├── interfaces/                  ← TypeScript interfaces
-├── use-cases/                   ← @Injectable() use-case classes
-├── rest/{web,mobile}/           ← @Controller() with DTOs
+├── module-name.service.ts       ← @Injectable() data access + cache (shared across modules)
 ├── graphql/                     ← @Resolver(), @ObjectType, @InputType
-└── spec.ts                     ← Tests (when present)
+├── use-cases/                   ← @Injectable() orchestration logic
+└── *.spec.ts                    ← Tests alongside source
 ```
 
-### Imports
+### Layer Responsibilities
 
-- **No path aliases** — all imports are relative (`../../integrations/...`)
-- Organize: NestJS decorators first, then project modules, then 3rd-party
+- **Resolver** — GraphQL-specific concerns (decorators, args, guards). Delegates to use case.
+- **Use Case** — Orchestration: calls services across modules, sends emails, sequences operations.
+- **Service** — Data access (Prisma) + cache (CacheService). Exported from module for cross-module injection.
 
-### Config Factories
+### Caching Pattern
 
-Every config factory uses this exact pattern:
+- `@Cacheable(keyFn, ttl?)` on read methods (`findAll`, `findById`)
+- Direct `this.cache.del(key)` / `this.cache.delByPattern(pattern)` in write methods (`create`, `update`, `delete`)
+- Cache key function receives method arguments: `@Cacheable((id) => \`entity:${id}\`)`
+- JSON date reviver in `CacheService.get()` converts ISO strings back to `Date` objects
+
+### Pagination
+
+- `normalizePagination(page?, limit?)` → clamps page ≥ 1, limit 1-100
+- `buildPaginatedResult(data, total, { page, limit })` → `{ data, meta: { pagination: { page, limit, total, totalPages } } }`
+- GraphQL types: `PaginatedType(EntityType)` → `meta { pagination { ... } }`
+
+### Config Validation
+
+Zod schema in `src/config/env-vars.schema.ts`. Injects as `ConfigService<Env, true>`:
 
 ```ts
-import { registerAs } from '@nestjs/config';
-import { z } from 'zod';
-
-const schema = z.object({ ... });
-export default registerAs('namespace', () => schema.parse({
-  key: process.env.ENV_VAR,
-}));
+constructor(private config: ConfigService<Env, true>) {}
+this.config.getOrThrow('MAIL_HOST', { infer: true })  // typed, no fallback
+this.config.get('MAIL_USER', { infer: true })         // string | undefined for optional keys
 ```
-
-Access via: `config.get<string>('namespace.key')` or `config.get<number>('namespace.key')`.
-
-Existing namespaces: `app`, `database`, `auth`, `redis`, `mail`.
-
-### Service Lifecycle
-
-- **PrismaService**: Extends `PrismaClient`, constructs driver adapter in constructor, no explicit connect (PrismaClient connects lazily)
-- **RedisService**: Extends `Redis` (ioredis), `lazyConnect: true`, connects in `onModuleInit`, quits in `onModuleDestroy`
-- **MailProcessor**: `@Processor('mail')` extends `WorkerHost`, implements `process(job)`
-
-### Auth Guards
-
-- `AuthGuard` (abstract, not `@Injectable()`) implements `CanActivate` — takes `TokenValidator` via constructor
-- `InternalAuthGuard` and `ExternalAuthGuard` are `@Injectable()` subclasses
-- Both support REST and GraphQL contexts (checks `context.getType() === 'graphql'`)
-- `@CurrentUser()` decorator extracts `request.user`
 
 ### Exception Handling
 
-- `GlobalExceptionFilter` catches everything via `@Catch()`
-- Returns: `{ statusCode, message, data: null, meta: { timestamp, path } }`
+- `PrismaClientExceptionFilter` catches `PrismaClientKnownRequestError`
+  - P2001 / P2025 → `NotFoundException`
+  - P2002 (unique constraint) → `ConflictException` with field names from `meta.target`
+- Unknown Prisma codes re-thrown
 - Registered via `APP_FILTER` provider token
-
-### Response Format
-
-- All HTTP responses wrapped in: `{ statusCode, message, data, meta }`
-- `@SkipResponseWrap()` decorator on handler/class to opt out
-- Paginated responses detected by `{ data, meta: { pagination } }` shape
 
 ### Validation
 
-- **Config**: Zod schemas in `src/config/` (validated at startup)
+- **Config**: Zod schema in `src/config/` (validated at startup, `z.infer` provides `Env` type)
 - **Runtime**: `class-validator` + `class-transformer` via NestJS `ValidationPipe` (global, `whitelist: true`, `forbidNonWhitelisted: true`, `transform: true`)
 
 ### BullMQ Queues
@@ -143,6 +140,7 @@ Existing namespaces: `app`, `database`, `auth`, `redis`, `mail`.
 - Global connection configured in `BullMqModule` (reads `redis.*` config)
 - Register queues via `BullModule.registerQueue({ name })` in feature modules
 - Consumers extend `WorkerHost` with `@Processor(name)` decorator
+- Mail queue: `MailService.send()` → BullMQ 'mail' queue → `MailProcessor.process()` → nodemailer
 
 ## Important Files
 
@@ -150,19 +148,22 @@ Existing namespaces: `app`, `database`, `auth`, `redis`, `mail`.
 |---|---|
 | `src/main.ts` | Bootstrap: `NestFactory.create`, CORS, ValidationPipe, shutdown hooks, listen on `PORT` |
 | `src/app.module.ts` | Root module — wires all integrations, modules, global interceptors/filters |
-| `src/config/env.config.ts` | Barrel — re-exports all 5 config factories |
-| `src/config/*.config.ts` | Config factories (app, database, auth, redis, mail) |
+| `src/config/env-vars.schema.ts` | Zod validation schema + `Env` type |
+| `src/common/filters/prisma-client-exception.filter.ts` | Prisma error → NestJS exception mapping |
+| `src/common/cache/cache.service.ts` | Redis-backed cache with JSON date reviver |
+| `src/common/decorators/cacheable.decorator.ts` | `@Cacheable(keyFn, ttl?)` decorator |
+| `src/common/interceptors/cacheable.interceptor.ts` | Cache-aside interceptor |
+| `src/common/pagination/pagination.util.ts` | `normalizePagination`, `buildPaginatedResult` |
+| `src/common/pagination/pagination.type.ts` | `PaginationMetaType`, `PaginationMetaWrapper`, `PaginatedType` |
+| `src/common/interceptors/logging.interceptor.ts` | Request logging with input args and error stacks |
+| `src/common/interceptors/response.interceptor.ts` | Response envelope wrapper |
 | `src/common/auth/auth.guard.ts` | Base auth guard — token extraction, delegation |
 | `src/common/auth/token-validator.ts` | Abstract validator + `JwtPayload` interface |
-| `src/common/interceptors/response.interceptor.ts` | Response envelope wrapper |
-| `src/common/filters/global-exception.filter.ts` | Unified error response |
 | `src/integrations/prisma/prisma.service.ts` | PrismaClient wrapper (v7 driver adapter) |
-| `src/integrations/redis/redis.health.ts` | Health indicator for Redis |
+| `src/integrations/graphql/graphql.module.ts` | Apollo driver config with validation error format |
 | `src/modules/health/health.controller.ts` | `GET /health` endpoint |
-| `src/modules/empty/` | Scaffold module (template for new features) |
-| `prisma/schema.prisma` | Single `User` model |
+| `prisma/schema.prisma` | `Customer`, `Doctor`, `Schedule` models |
 | `prisma.config.ts` | Prisma v7 `defineConfig` |
-| `test/app.e2e-spec.ts` | E2E smoke tests |
 | `Dockerfile` | Multi-stage pnpm build |
 
 ## Runtime/Tooling Preferences
@@ -174,7 +175,7 @@ Existing namespaces: `app`, `database`, `auth`, `redis`, `mail`.
 | **Language** | TypeScript 5.7, target ES2023, module `nodenext` |
 | **Strictness** | `strictNullChecks` + `noImplicitAny` (not full `strict`) |
 | **Decorators** | `experimentalDecorators` + `emitDecoratorMetadata` (NestJS requirement) |
-| **Formatting** | Prettier (singleQuote, trailingComma: all, no semicolon override → required) |
+| **Formatting** | Prettier (singleQuote, trailingComma: all) |
 | **Linting** | ESLint flat config, type-aware, Prettier integration |
 | **DI** | Constructor-based (NestJS standard) |
 | **No path aliases** | Use relative imports throughout |
@@ -202,32 +203,20 @@ pnpm test:watch    # Watch mode
 - **rootDir**: `src` — specs live alongside source
 - **testRegex**: `.*\.spec\.ts$` — any `*.spec.ts` under `src/`
 - **collectCoverageFrom**: `**/*.(t|j)s`
-- Place test files next to the code they test: `mail.service.ts` → `mail.service.spec.ts`
+- Place test files next to the code they test
 
-### E2E Tests
+### Mock Pattern
 
-- Custom config at `test/jest-e2e.json`
-- PrismaClient mocked via `moduleNameMapper` → `test/__mocks__/prisma-client.ts`
-- DI overrides via `.overrideProvider()` for PrismaService/PrismaHealthIndicator
-- App bootstrapped fresh per test via `Test.createTestingModule`
-
-### Current Coverage
-
-2 E2E tests (health endpoint, GraphQL hello query). **Zero unit tests.** Coverage configuration exists but no meaningful coverage yet.
-
-### Mock Pattern (E2E)
+Use case tests mock services directly (not Prisma):
 
 ```ts
-// test/__mocks__/prisma-client.ts — class stub mapped via moduleNameMapper
-class PrismaClient {
-  $connect = jest.fn();
-  $disconnect = jest.fn();
-  user = {
-    findMany: jest.fn().mockResolvedValue([]),
-    findUnique: jest.fn().mockResolvedValue(null),
-    create: jest.fn().mockResolvedValue({}),
-    update: jest.fn().mockResolvedValue({}),
-    delete: jest.fn().mockResolvedValue({}),
-  };
-}
+const customerService = { findById: jest.fn() };
+const module = await Test.createTestingModule({
+  providers: [
+    CreateScheduleUseCase,
+    { provide: CustomerService, useValue: customerService },
+    { provide: DoctorService, useValue: doctorService },
+    { provide: ScheduleService, useValue: scheduleService },
+  ],
+}).compile();
 ```
