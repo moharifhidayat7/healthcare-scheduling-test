@@ -223,6 +223,7 @@
                   "pm.test('has token', () => {",
   "  pm.expect(json.data.login.token).to.be.a('string');",
                   "});",
+                  "pm.collectionVariables.set('authToken', json.data.login.token);",
                   ""
                 ],
                 "type": "text/javascript"
