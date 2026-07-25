@@ -6,6 +6,12 @@ NestJS v11 GraphQL microservice for managing customer appointments. Prisma ORM (
 
 ## Prerequisites
 
+- Node.js 22+
+- pnpm
+- PostgreSQL 17 (running)
+- Redis 7 (running)
+- Auth Service running and accessible
+
 ## Project Structure
 
 ```
@@ -38,12 +44,7 @@ src/
 │       └── use-cases/               ← Orchestration logic
 └── prisma/
     └── schema.prisma              ← Customer, Doctor, Schedule models
-
-- Node.js 22+
-- pnpm
-- PostgreSQL 17 (running)
-- Redis 7 (running)
-- Auth Service running and accessible
+```
 
 ## Setup
 
