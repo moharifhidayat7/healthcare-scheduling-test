@@ -2,6 +2,8 @@
 
 NestJS v11 GraphQL + REST API with Prisma ORM (PostgreSQL), JWT auth, and bcrypt password hashing.
 
+[🇮🇩 Bahasa Indonesia](./README-ID.md)
+
 ## Structure
 
 ```
@@ -10,88 +12,70 @@ src/
 ├── main.ts                    ← bootstrap with CORS, ValidationPipe, shutdown hooks
 │
 ├── config/
-│   └── env-vars.schema.ts     ← Joi validation schema for all env vars
+│   └── env-vars.schema.ts     ← Zod validation schema + Env type
 │
 ├── integrations/
-│   ├── prisma/
-│   │   ├── prisma.module.ts
-│   │   └── prisma.service.ts
-│   ├── redis/                  ← (commented out — optional)
-│   ├── bullmq/                 ← (commented out — optional)
-│   └── graphql/
-│       └── graphql.module.ts  ← Apollo driver config (POST /graphql)
+│   ├── prisma/                ← PrismaClient wrapper (v7 driver adapter)
+│   ├── redis/                 ← ioredis (lazy connect, lifecycle hooks)
+│   ├── bullmq/                ← Global BullMQ config
+│   └── graphql/               ← Apollo driver with validation error format
 │
 ├── common/
 │   ├── auth/
-│   │   ├── auth.module.ts
 │   │   ├── auth.guard.ts              ← base guard
 │   │   ├── internal.guard.ts          ← validates internal JWT (INTERNAL_JWT_SECRET)
-│   │   ├── current-user.decorator.ts
-│   │   ├── token-validator.ts         ← abstract class + JwtPayload type
 │   │   ├── internal-token.service.ts  ← generates service-to-service JWTs
 │   │   ├── user-token.service.ts      ← generates user auth JWTs (JWT_SECRET)
+│   │   ├── token-validator.ts         ← abstract class + JwtPayload type
 │   │   └── strategies/
 │   │       ├── internal-jwt.validator.ts
 │   │       └── user-jwt.validator.ts
-│   ├── mail/                  ← (commented out — optional)
-│   │   ├── mail.module.ts
-│   │   ├── mail.service.ts
-│   │   ├── mail.processor.ts
-│   │   └── interfaces/
+│   ├── cache/
+│   │   ├── cache.module.ts            ← Global module (Redis-backed)
+│   │   └── cache.service.ts
 │   ├── decorators/
+│   │   ├── cacheable.decorator.ts     ← @Cacheable(keyFn, ttl?)
 │   │   └── skip-response-wrap.decorator.ts
 │   ├── filters/
-│   │   └── global-exception.filter.ts
+│   │   └── prisma-client-exception.filter.ts  ← P2001/P2002/P2025 mapping
 │   ├── interceptors/
-│   │   ├── logging.interceptor.ts
-│   │   └── response.interceptor.ts
-│   └── pagination/
-│       ├── pagination.dto.ts
-│       └── pagination.interface.ts
+│   │   ├── logging.interceptor.ts     ← request logging with input/error details
+│   │   ├── response.interceptor.ts
+│   │   └── cacheable.interceptor.ts
+│   ├── pagination/
+│   │   ├── pagination.type.ts         ← PaginatedType factory
+│   │   ├── pagination.util.ts
+│   │   ├── pagination.interface.ts
+│   │   └── pagination.dto.ts
+│   └── mail/
+│       ├── mail.service.ts
+│       ├── mail.processor.ts
+│       └── interfaces/
 │
 ├── modules/
-│   ├── auth/
-│   │   ├── auth.module.ts
-│   │   ├── graphql/
-│   │   │   ├── auth.resolver.ts
-│   │   │   ├── types/
-│   │   │   │   ├── auth-token.type.ts
-│   │   │   │   └── user-info.type.ts
-│   │   │   └── inputs/
-│   │   │       ├── register.input.ts
-│   │   │       └── login.input.ts
-│   │   └── use-cases/
-│   │       ├── register.use-case.ts
-│   │       ├── login.use-case.ts
-│   │       └── validate-token.use-case.ts
-│   ├── empty/                  ← scaffold module
-│   └── health/
-│       ├── health.controller.ts
-│       └── health.module.ts
+│   ├── auth/                   ← register, login, validateToken
+│   └── health/                 ← GET /health (server reachability)
 │
 └── prisma/
-    ├── schema.prisma
-    └── seed/
-        └── index.ts
+    ├── schema.prisma           ← User model
+    ├── seed/
+    └── migrations/
 ```
 
 ## Configuration
 
-All environment variables are validated at startup via a Joi schema in `src/config/env-vars.schema.ts`.
-Values are accessed directly by their env var name through NestJS `ConfigService`:
+All env vars validated at startup via Zod schema. Injects as `ConfigService<Env, true>`:
 
 ```ts
-constructor(private config: ConfigService) {
-  const host = config.get<string>('REDIS_HOST');
-  const port = config.get<number>('REDIS_PORT');
-}
+constructor(private config: ConfigService<Env, true>) {}
+this.config.getOrThrow('JWT_SECRET', { infer: true })  // typed, no fallback
 ```
 
 ## Prerequisites
 
 - Node.js 22+
 - pnpm
-- PostgreSQL (or Prisma Postgres)
+- PostgreSQL
 
 ## Setup
 
@@ -120,19 +104,19 @@ pnpm test:e2e      # e2e (supertest)
 | Variable | Required | Default | Description |
 |---|---|---|---|
 | `PORT` | no | `3000` | HTTP port |
-| `SERVICE_NAME` | no | `unknown` | Identity used when generating internal tokens |
+| `SERVICE_NAME` | no | `unknown` | Identity for internal JWT |
 | `NODE_ENV` | no | `development` | `development`, `production`, `test` |
 | `DB_HOST` | no | `localhost` | PostgreSQL host |
 | `DB_PORT` | no | `5432` | PostgreSQL port |
 | `DB_USER` | no | `postgres` | PostgreSQL user |
 | `DB_PASSWORD` | no | `postgres` | PostgreSQL password |
 | `DB_NAME` | no | `auth_service` | PostgreSQL database name |
-| `DATABASE_URL` | yes | — | Full connection string (used by Prisma CLI) |
-| `INTERNAL_JWT_SECRET` | yes | — | Shared secret for signing/verifying service-to-service JWTs |
-| `JWT_SECRET` | yes | — | Shared secret for signing/verifying user auth JWTs |
-| `REDIS_HOST` | no | `localhost` | Redis host (optional) |
+| `DATABASE_URL` | yes | — | Full connection string |
+| `INTERNAL_JWT_SECRET` | yes | — | Shared secret for service-to-service JWTs |
+| `JWT_SECRET` | yes | — | Shared secret for user auth JWTs |
+| `REDIS_HOST` | no | — | Redis host (optional) |
 | `REDIS_PORT` | no | `6379` | Redis port (optional) |
-| `REDIS_PASSWORD` | no | — | Redis password |
+| `REDIS_PASSWORD` | no | `''` | Redis password |
 | `REDIS_DB` | no | `0` | Redis database index |
 | `MAIL_HOST` | no | — | SMTP host (optional) |
 | `MAIL_PORT` | no | `587` | SMTP port (optional) |
@@ -146,231 +130,69 @@ pnpm test:e2e      # e2e (supertest)
 
 `InternalAuthGuard` verifies short-lived JWTs (5 min, `INTERNAL_JWT_SECRET`) between services.
 
-**Service A — sending:**
-
 ```ts
-import { InternalTokenService } from './common/auth/internal-token.service';
+// Service A — sending
+const token = this.internalTokenService.generate();
+await fetch('http://other-service/internal/endpoint', {
+  headers: { Authorization: `Bearer ${token}` },
+});
 
-@Injectable()
-export class NotificationClient {
-  constructor(private readonly tokenService: InternalTokenService) {}
-
-  async notify(userId: string) {
-    const token = this.tokenService.generate();
-    await fetch('http://notification-service/internal/send', {
-      headers: { Authorization: `Bearer ${token}` },
-    });
-  }
-}
-```
-
-**Service B — receiving:**
-
-```ts
+// Service B — receiving (applies to any service using InternalAuthGuard)
 @UseGuards(InternalAuthGuard)
-@Post('internal/send')
-async send(@Body() body: SendDto, @CurrentUser() user: JwtPayload) {
-  console.log(user.sub); // 'schedule-service' — identifies the caller
+@Post('internal/endpoint')
+async handle(@CurrentUser() user: JwtPayload) {
+  console.log(user.sub); // identifies the caller service
 }
 ```
 
 ### User Auth (GraphQL)
 
-Available at `POST /graphql`. Open the Apollo Sandbox at `http://localhost:3000/graphql` in your browser.
+Available at `POST /graphql`. Open the Apollo Sandbox at `http://localhost:3000/graphql`.
 
 #### register
 
-Creates a new user account. Password hashed with bcrypt (10 rounds) before storage.
-
 ```graphql
 mutation Register($input: RegisterInput!) {
-  register(input: $input) {
-    token
-  }
+  register(input: $input) { token }
 }
 ```
 
-**Variables:**
-```json
-{
-  "input": {
-    "email": "user@example.com",
-    "password": "securePassword123"
-  }
-}
-```
-
-**Response:**
-```json
-{
-  "data": {
-    "register": {
-      "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
-    }
-  }
-}
-```
+**Variables:** `{ "input": { "email": "user@example.com", "password": "securePassword123" } }`
 
 **Errors:** `409 Conflict` — email already registered.
 
----
-
 #### login
-
-Authenticates with email and password. Returns a JWT on success.
 
 ```graphql
 mutation Login($input: LoginInput!) {
-  login(input: $input) {
-    token
-  }
-}
-```
-
-**Variables:**
-```json
-{
-  "input": {
-    "email": "user@example.com",
-    "password": "securePassword123"
-  }
-}
-```
-
-**Response:**
-```json
-{
-  "data": {
-    "login": {
-      "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
-    }
-  }
+  login(input: $input) { token }
 }
 ```
 
 **Errors:** `401 Unauthorized` — invalid email or password.
 
----
-
 #### validateToken
-
-Validates a user JWT and returns decoded user info.
 
 ```graphql
 query ValidateToken($token: String!) {
-  validateToken(token: $token) {
-    id
-    email
-    roles
-  }
+  validateToken(token: $token) { sub email roles }
 }
 ```
 
-**Variables:**
-```json
-{
-  "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
-}
-```
-
-**Response:**
-```json
-{
-  "data": {
-    "validateToken": {
-      "id": "550e8400-e29b-41d4-a716-446655440000",
-      "email": "user@example.com",
-      "roles": ["user"]
-    }
-  }
-}
-```
+**Response:** `{ "data": { "validateToken": { "sub": "uuid", "email": "user@example.com", "roles": ["user"] } } }`
 
 **Errors:** `401 Unauthorized` — invalid or expired token.
 
----
-
 #### Using the token
-
-Include the JWT in the `Authorization` header for authenticated requests:
 
 ```http
 Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
 ```
 
-## REST
-
-### Scaffold (empty module)
-
-```
-GET    /web/empty
-POST   /web/empty
-PATCH  /web/empty/:id
-DELETE /web/empty/:id
-```
-
-### Health
-
-```
-GET /health
-```
-
-
-All responses wrapped in:
-```json
-{
-  "statusCode": 200,
-  "message": "Success",
-  "data": { ... },
-  "meta": { "timestamp": "..." }
-}
-```
-
 ## Docker
 
-### Build
-
 ```bash
-podman build -t auth-service:latest .
-# or
-docker build -t auth-service:latest .
-```
-
-### docker-compose
-
-```yaml
-services:
-  postgres:
-    image: postgres:16-alpine
-    environment:
-      POSTGRES_DB: auth_service
-      POSTGRES_PASSWORD: postgres
-    ports: [5432:5432]
-    healthcheck:
-      test: pg_isready -U postgres
-
-  app:
-    build: .
-    env_file: .env
-    ports: [3000:3000]
-    depends_on:
-      postgres:
-        condition: service_healthy
-```
-
-### Migrations
-
-```bash
-# Connect to running container and apply pending migrations
-docker-compose exec app prisma migrate deploy
-# or
-podman exec -it <container> prisma migrate deploy
-```
-
-## Creating a new module
-
-```bash
-cp -r src/modules/empty src/modules/orders
-# Rename files Empty → Order
-# Add use-cases, inject guards, register in AppModule
+podman compose build auth-service
+podman compose up -d postgresql auth-service
+podman compose run --rm migrate-auth-service
 ```
